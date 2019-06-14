@@ -1,0 +1,16 @@
+{
+  "name": "stockwatch",
+  "private": true,
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^5.9.0",
+    "@rails/webpacker": "^4.0.7",
+    "bootstrap-vue": "^2.0.0-rc.23",
+    "css-url-relative-plugin": "^1.0.0",
+    "vue": "^2.6.10",
+    "vue-loader": "^15.7.0",
+    "vue-template-compiler": "^2.6.10"
+  },
+  "devDependencies": {
+    "webpack-dev-server": "^3.7.1"
+  }
+}
