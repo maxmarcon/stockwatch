@@ -1,0 +1,23 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+# This model initially had no columns defined. If you add columns to the
+# model remove the '{}' from the fixture names and add the columns immediately
+# below each fixture, per the syntax in the comments below
+#
+
+new_figi: &DEFAULT
+  figi: BBG00LNBYML4
+  isin: DE0005933972
+  name: ISHARES TECDAX UCITS ETF DE
+  unique_id: EQ0000000067181568
+  ticker: TDXPEGBX
+  exch_code: XO
+
+old_figi:
+  <<: *DEFAULT
+  figi: BBG00LNBYMV3
+  isin: DE0005933973
+  unique_id: EQ0000000067181580
+  updated_at: <%= 2.days.ago %>
+
+

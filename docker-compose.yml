@@ -1,0 +1,25 @@
+version: "3"
+services:
+  db:
+    image: postgres
+    environment:
+      POSTGRES_PASSWORD: secret
+      POSTGRES_USER: stockwatch
+      POSTGRES_DB: stockwatch_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - "stockwatch_dev_data:/var/lib/postgresql/data"
+  db_test:
+    image: postgres
+    environment:
+      POSTGRES_PASSWORD: secret
+      POSTGRES_USER: stockwatch
+      POSTGRES_DB: stockwatch_test
+    ports:
+      - "54320:5432"
+    volumes:
+      - "stockwatch_test_data:/var/lib/postgresql/data"
+volumes:
+  stockwatch_dev_data:
+  stockwatch_test_data:
