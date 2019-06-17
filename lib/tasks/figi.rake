@@ -2,7 +2,9 @@ namespace :figi do
 
   desc "Retrieve or update FIGIs by ISIN"
   task :update, [:isins] => [:environment] do |task, args|
-    FigiService.new.get_by_isin(args.to_a)
+    FigiService.new.index_by_isin(args.to_a).each do |isin, figis|
+      puts "#{isin}: found #{figis.count} isins"
+    end
   end
 
   desc "Delete FIGIs by ISIN (don't pass any isins to remove all FIGIs)"

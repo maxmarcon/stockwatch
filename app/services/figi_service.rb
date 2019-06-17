@@ -8,6 +8,7 @@ class FigiService
     @config = Rails.configuration.figi.merge(config)
     @base_url = @config['base_url']
     @max_age = (@config['max_age'] || DEFAULT_MAX_AGE).seconds
+    RestClient.log = Rails.logger
 
     raise 'base_url must be specified in figi configuration' unless @base_url
   end
@@ -38,7 +39,7 @@ class FigiService
     Rails.logger.info("fetching ISINs #{isins}")
 
     begin
-      response = RestClient.post "v2/mapping",
+      response = RestClient.post @base_url + "/v2/mapping",
         isins.map{ |isin| {idType: 'ID_ISIN', idValue: isin}}.to_json, REST_CLIENT_OPTIONS
 
       parse_response(response, isins)
