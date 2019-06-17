@@ -13,14 +13,14 @@ class FigiService
     raise 'base_url must be specified in figi configuration' unless @base_url
   end
 
-  def get_by_isin(isins, force_update: false)
+  def index_by_isin(isins, force_update: false)
     updated_at = Figi.where(isin: isins).group(:isin).minimum(:updated_at)
 
-    to_update = isins.select{ |isin| force_update || updated_at[isin].nil? || updated_at[isin] < @max_age.ago }
+    isins_to_update = isins.select{ |isin| force_update || updated_at[isin].nil? || updated_at[isin] < @max_age.ago }
 
-    update_by_isin(to_update) if to_update.any?
+    update_isins(isins_to_update) if isins_to_update.any?
 
-    Figi.where(isin: isins).to_a
+    Figi.where(isin: isins).group_by(&:isin)
   end
 
   def delete_by_isin(isins)
@@ -39,7 +39,7 @@ class FigiService
     Rails.configuration.figi.merge(@conf_override)
   end
 
-  def update_by_isin(isins)
+  def update_isins(isins)
     Rails.logger.info("fetching ISINs #{isins}")
 
     response = RestClient.post "v2/mapping",
@@ -50,11 +50,14 @@ class FigiService
 
     saved = 0
 
-    #TODO: need to delete old FIGIs that don't appear in the new results
     json_body.each_with_index do |mapping, i|
-      mapping.fetch('data', []).each do |record|
+      # Results for isins[i]
+      isin = isins[i]
+
+      records = mapping.fetch('data', [])
+      records.each do |record|
         figi = Figi.find_or_initialize_by(figi: record['figi'])
-        figi.isin = isins[i]
+        figi.isin = isin
         figi.assign_attributes(
           record.map{ |k,v| [k.underscore, v]}.to_h.select{ |k,_| k.in? PERMITTED_PARAMS }
         )
@@ -65,6 +68,9 @@ class FigiService
           Rails.logger.error("Unable to save figi #{figi.figi}: #{figi.errors.full_messages.join(', ')}")
         end
       end
+
+      # remove stale FIGIs
+      Figi.where(isin: isin).where.not(figi: records.map{ |r| r['figi'] }).delete_all if records.any?
     end
 
     Rails.logger.info("Saved #{saved} figis")

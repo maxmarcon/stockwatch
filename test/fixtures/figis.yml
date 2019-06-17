@@ -5,19 +5,39 @@
 # below each fixture, per the syntax in the comments below
 #
 
-new_figi: &DEFAULT
+fresh_figi_1: &DEFAULT
   figi: BBG00LNBYML4
   isin: DE0005933972
-  name: ISHARES TECDAX UCITS ETF DE
+  name: ISHARES TECDAX UCITS ETF DE1
   unique_id: EQ0000000067181568
   ticker: TDXPEGBX
   exch_code: XO
 
-old_figi:
+fresh_figi_2: &DEFAULT
+  figi: BBG00LNBYML7
+  isin: DE0005933972
+  name: ISHARES TECDAX UCITS ETF DE2
+  unique_id: EQ0000000067181568
+  ticker: TDXPEGBX
+  exch_code: XO
+
+old_figi_1:
   <<: *DEFAULT
   figi: BBG00LNBYMV3
   isin: DE0005933973
   unique_id: EQ0000000067181580
   updated_at: <%= 2.days.ago %>
 
+old_figi_2:
+  <<: *DEFAULT
+  figi: BBG00LNBYMV5
+  isin: DE0005933973
+  unique_id: EQ0000000067181581
+  updated_at: <%= 2.days.ago %>
 
+old_figi_3:
+  <<: *DEFAULT
+  figi: BBG00LNBYMV6
+  isin: DE0005933973
+  unique_id: EQ0000000067181582
+  updated_at: <%= 2.days.ago %>
