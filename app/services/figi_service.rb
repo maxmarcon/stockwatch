@@ -42,9 +42,17 @@ class FigiService
   def update_isins(isins)
     Rails.logger.info("fetching ISINs #{isins}")
 
-    response = RestClient.post "v2/mapping",
-      isins.map{ |isin| {idType: 'ID_ISIN', idValue: isin}}.to_json, REST_CLIENT_OPTIONS
+    begin
+      response = RestClient.post "v2/mapping",
+        isins.map{ |isin| {idType: 'ID_ISIN', idValue: isin}}.to_json, REST_CLIENT_OPTIONS
 
+      parse_response(response, isins)
+    rescue RestClient::ExceptionWithResponse => e
+      Rails.logger.error("Recived error response from OpenFIGI: #{e}")
+    end
+  end
+
+  def parse_response(response, isins)
     json_body = JSON.parse(response.body)
 
     raise "Received response of wrong type: #{json_body.class}, expected array" unless json_body.is_a? Array
@@ -58,27 +66,33 @@ class FigiService
       if mapping.has_key?('data')
         records = mapping['data']
 
-        records.each do |record|
-          figi = Figi.find_or_initialize_by(figi: record['figi'])
-          figi.isin = isin
-          figi.assign_attributes(
-            record.map{ |k,v| [k.underscore, v]}.to_h.select{ |k,_| k.in? PERMITTED_PARAMS }
-          )
-
-          if figi.save
-            saved += 1
-          else
-            Rails.logger.error("Unable to save figi #{figi.figi}: #{figi.errors.full_messages.join(', ')}")
-          end
-        end
+        saved += records.reduce(0) {
+          |saved, record|
+          saved + if create_or_update_figi_from_record(record, isin) then 1 else 0 end
+        }
         # remove stale FIGIs for this ISIN
         Figi.where(isin: isin).where.not(figi: records.map{ |r| r['figi'] }).delete_all if records.any?
-
       else
         Rails.logger.error("Results for ISIN #{isin} not found. Error: #{mapping['error']}")
       end
     end
 
     Rails.logger.info("Saved #{saved} figis")
+  end
+
+  def create_or_update_figi_from_record(record, isin)
+
+    figi = Figi.find_or_initialize_by(figi: record['figi'])
+    figi.isin = isin
+    figi.assign_attributes(
+      record.map{ |k,v| [k.underscore, v]}.to_h.select{ |k,_| k.in? PERMITTED_PARAMS }
+    )
+
+    if figi.save
+      true
+    else
+      Rails.logger.error("Unable to save figi #{figi.figi}: #{figi.errors.full_messages.join(', ')}")
+      false
+    end
   end
 end

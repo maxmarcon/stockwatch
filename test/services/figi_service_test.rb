@@ -145,7 +145,7 @@ class FigiServiceTest < ActiveSupport::TestCase
       assert_equal REST_CORRECT_RESPONSE[0][:data].map{ |r| r[:ticker] }, new_figis.map(&:ticker)
     end
 
-    assert @rest_correct_response.verify
+    @rest_correct_response.verify
     assert_equal 2, Figi.where(isin: NEW_FIGI_ISIN).count
   end
 
@@ -163,7 +163,7 @@ class FigiServiceTest < ActiveSupport::TestCase
       assert_equal REST_CORRECT_RESPONSE[1][:data].map{ |r| r[:ticker] }, old_figis.map(&:ticker)
     end
 
-    assert @rest_correct_response.verify
+    @rest_correct_response.verify
     assert_equal 2, Figi.where(isin: OLD_FIGI_ISIN).count
   end
 
@@ -178,7 +178,7 @@ class FigiServiceTest < ActiveSupport::TestCase
       assert_equal figis(:fresh_figi_1, :fresh_figi_2), fresh_figis
     end
 
-    assert @rest_correct_response.verify
+    @rest_correct_response.verify
     assert_equal 2, Figi.where(isin: FRESH_FIGI_ISIN).count
   end
 
@@ -206,7 +206,7 @@ class FigiServiceTest < ActiveSupport::TestCase
       @service.index_by_isin(ISINS)
     end
 
-    assert @rest_response_with_figi_errors.verify
+    @rest_response_with_figi_errors.verify
     assert_equal 0, Figi.where(isin: NEW_FIGI_ISIN).count
   end
 
@@ -217,6 +217,8 @@ class FigiServiceTest < ActiveSupport::TestCase
         @service.index_by_isin(ISINS)
       end
     end
+
+    @rest_unexpected_format_response.verify
   end
 
   test "raises if response is invalid json" do
@@ -226,14 +228,22 @@ class FigiServiceTest < ActiveSupport::TestCase
         @service.index_by_isin(ISINS)
       end
     end
+
+    @rest_malformed_response.verify
   end
 
-  test "raises if RestClient raises exception" do
+  test "logs error if RestClient raises exception" do
+
+    logger_mock = Minitest::Mock.new
+    logger_mock.expect :info, nil, [String]
+    logger_mock.expect :error, nil, [String]
 
     RestClient.stub :post, @rest_response_throwing_rest_client_error do
-      assert_raises RestClient::NotFound do
+      Rails.stub :logger, logger_mock do
         @service.index_by_isin(ISINS)
       end
     end
+
+    logger_mock.verify
   end
 end
