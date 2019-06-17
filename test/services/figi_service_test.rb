@@ -126,6 +126,10 @@ class FigiServiceTest < ActiveSupport::TestCase
     @rest_unexpected_format_response = Minitest::Mock.new.expect :body, REST_UNEXPECTED_FORMAT_RESPONSE.to_json
     @rest_malformed_response = Minitest::Mock.new.expect :body, "{NOT JSON"
     @rest_response_with_figi_errors = Minitest::Mock.new.expect :body, REST_RESPONSE_WITH_FIGI_ERRORS.to_json
+
+    @rest_response_throwing_rest_client_error = ->(_,_,_){
+      raise RestClient::NotFound
+    }
   end
 
   test "should fetch new FIGIs" do
@@ -219,6 +223,15 @@ class FigiServiceTest < ActiveSupport::TestCase
 
     RestClient.stub :post, @rest_malformed_response do
       assert_raises JSON::ParserError do
+        @service.index_by_isin(ISINS)
+      end
+    end
+  end
+
+  test "raises if RestClient raises exception" do
+
+    RestClient.stub :post, @rest_response_throwing_rest_client_error do
+      assert_raises RestClient::NotFound do
         @service.index_by_isin(ISINS)
       end
     end
