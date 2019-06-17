@@ -236,7 +236,7 @@ class FigiServiceTest < ActiveSupport::TestCase
 
     logger_mock = Minitest::Mock.new
     logger_mock.expect :info, nil, [String]
-    logger_mock.expect :error, nil, [String]
+    logger_mock.expect :error, nil, ["Received error response from OpenFIGI: Not Found"]
 
     RestClient.stub :post, @rest_response_throwing_rest_client_error do
       Rails.stub :logger, logger_mock do

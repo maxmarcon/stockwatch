@@ -4,10 +4,10 @@ class FigiService
   REST_CLIENT_OPTIONS = {content_type: :json, accept: :json}
   PERMITTED_PARAMS = %w(name ticker unique_id exch_code)
 
-  def initialize(conf_override)
-    @conf_override = conf_override
-    @base_url = config['base_url']
-    @max_age = (config['max_age'] || DEFAULT_MAX_AGE).seconds
+  def initialize(config = {})
+    @config = Rails.configuration.figi.merge(config)
+    @base_url = @config['base_url']
+    @max_age = (@config['max_age'] || DEFAULT_MAX_AGE).seconds
     RestClient.log = Rails.logger
 
     raise 'base_url must be specified in figi configuration' unless @base_url
@@ -35,10 +35,6 @@ class FigiService
 
   private
 
-  def config
-    Rails.configuration.figi.merge(@conf_override)
-  end
-
   def update_isins(isins)
     Rails.logger.info("fetching ISINs #{isins}")
 
@@ -48,7 +44,7 @@ class FigiService
 
       parse_response(response, isins)
     rescue RestClient::ExceptionWithResponse => e
-      Rails.logger.error("Recived error response from OpenFIGI: #{e}")
+      Rails.logger.error("Received error response from OpenFIGI: #{e}")
     end
   end
 
@@ -66,10 +62,10 @@ class FigiService
       if mapping.has_key?('data')
         records = mapping['data']
 
-        saved += records.reduce(0) {
+        saved += records.reduce(0) do
           |saved, record|
-          saved + if create_or_update_figi_from_record(record, isin) then 1 else 0 end
-        }
+          saved + (create_or_update_figi_from_record(record, isin) ? 1 : 0)
+        end
         # remove stale FIGIs for this ISIN
         Figi.where(isin: isin).where.not(figi: records.map{ |r| r['figi'] }).delete_all if records.any?
       else
