@@ -46,6 +46,7 @@ class FigiService
       isins.map{ |isin| {idType: 'ID_ISIN', idValue: isin}}.to_json, REST_CLIENT_OPTIONS
 
     json_body = JSON.parse(response.body)
+
     raise "Received response of wrong type: #{json_body.class}, expected array" unless json_body.is_a? Array
 
     saved = 0
@@ -54,23 +55,28 @@ class FigiService
       # Results for isins[i]
       isin = isins[i]
 
-      records = mapping.fetch('data', [])
-      records.each do |record|
-        figi = Figi.find_or_initialize_by(figi: record['figi'])
-        figi.isin = isin
-        figi.assign_attributes(
-          record.map{ |k,v| [k.underscore, v]}.to_h.select{ |k,_| k.in? PERMITTED_PARAMS }
-        )
+      if mapping.has_key?('data')
+        records = mapping['data']
 
-        if figi.save
-          saved += 1
-        else
-          Rails.logger.error("Unable to save figi #{figi.figi}: #{figi.errors.full_messages.join(', ')}")
+        records.each do |record|
+          figi = Figi.find_or_initialize_by(figi: record['figi'])
+          figi.isin = isin
+          figi.assign_attributes(
+            record.map{ |k,v| [k.underscore, v]}.to_h.select{ |k,_| k.in? PERMITTED_PARAMS }
+          )
+
+          if figi.save
+            saved += 1
+          else
+            Rails.logger.error("Unable to save figi #{figi.figi}: #{figi.errors.full_messages.join(', ')}")
+          end
         end
-      end
+        # remove stale FIGIs for this ISIN
+        Figi.where(isin: isin).where.not(figi: records.map{ |r| r['figi'] }).delete_all if records.any?
 
-      # remove stale FIGIs
-      Figi.where(isin: isin).where.not(figi: records.map{ |r| r['figi'] }).delete_all if records.any?
+      else
+        Rails.logger.error("Results for ISIN #{isin} not found. Error: #{mapping['error']}")
+      end
     end
 
     Rails.logger.info("Saved #{saved} figis")
