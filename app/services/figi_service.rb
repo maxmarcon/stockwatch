@@ -39,19 +39,19 @@ class FigiService
     Rails.logger.info("fetching ISINs #{isins}")
 
     begin
-      response = RestClient.post @base_url + "/v2/mapping",
+      response = RestClient.post URI.join(@base_url, "mapping").to_s,
         isins.map{ |isin| {idType: 'ID_ISIN', idValue: isin}}.to_json, REST_CLIENT_OPTIONS
 
-      parse_response(response, isins)
+      process_response(response, isins)
     rescue RestClient::ExceptionWithResponse => e
       Rails.logger.error("Received error response from OpenFIGI: #{e}")
     end
   end
 
-  def parse_response(response, isins)
+  def process_response(response, isins)
     json_body = JSON.parse(response.body)
 
-    raise "Received response of wrong type: #{json_body.class}, expected array" unless json_body.is_a? Array
+    raise "Received response of wrong type: #{json_body.class}, expected Array" unless json_body.is_a? Array
 
     saved = 0
 

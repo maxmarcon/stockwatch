@@ -132,7 +132,7 @@ class FigiServiceTest < ActiveSupport::TestCase
     }
   end
 
-  test "should fetch new FIGIs" do
+  test "#index_by_isin fetches new FIGIs" do
 
     RestClient.stub :post, @rest_correct_response do
 
@@ -150,7 +150,7 @@ class FigiServiceTest < ActiveSupport::TestCase
   end
 
 
-  test "should update expired FIGIs" do
+  test "#{}index_by_isin updates expired FIGIs" do
 
     RestClient.stub :post, @rest_correct_response do
       figis = @service.index_by_isin(ISINS)
@@ -168,7 +168,7 @@ class FigiServiceTest < ActiveSupport::TestCase
   end
 
 
-  test "should not update fresh FIGIs" do
+  test "#index_by_isin does not update fresh FIGIs" do
 
     RestClient.stub :post, @rest_correct_response do
       returned_figis = @service.index_by_isin(ISINS)
@@ -182,14 +182,16 @@ class FigiServiceTest < ActiveSupport::TestCase
     assert_equal 2, Figi.where(isin: FRESH_FIGI_ISIN).count
   end
 
-  test "can delete all FIGIs" do
+  test "#delete_all deletes all FIGIs" do
+
+    assert Figi.any?
 
     @service.delete_all
 
-    assert_equal 0, Figi.count
+    assert Figi.none?
   end
 
-  test "can delete by ISIN" do
+  test "#delete_by_isin deletes by ISIN" do
 
     isin = figis(:fresh_figi_1).isin
     other_isin = figis(:old_figi_1).isin
@@ -200,7 +202,7 @@ class FigiServiceTest < ActiveSupport::TestCase
     assert_equal 3, Figi.where.not(isin: isin).count
   end
 
-  test "can handle errors from the FIGI API" do
+  test "#index_by_isin handles errors from the FIGI API" do
 
     RestClient.stub :post, @rest_response_with_figi_errors do
       @service.index_by_isin(ISINS)
@@ -210,18 +212,20 @@ class FigiServiceTest < ActiveSupport::TestCase
     assert_equal 0, Figi.where(isin: NEW_FIGI_ISIN).count
   end
 
-  test "raises if response has unexpected format" do
+  test "#index_by_isin raises if response has unexpected format" do
 
     RestClient.stub :post, @rest_unexpected_format_response do
-      assert_raises RuntimeError do
+      e = assert_raises RuntimeError do
         @service.index_by_isin(ISINS)
       end
+
+      assert_equal 'Received response of wrong type: Hash, expected Array', e.message
     end
 
     @rest_unexpected_format_response.verify
   end
 
-  test "raises if response is invalid json" do
+  test "#index_by_isin raises if response is invalid json" do
 
     RestClient.stub :post, @rest_malformed_response do
       assert_raises JSON::ParserError do
@@ -232,7 +236,7 @@ class FigiServiceTest < ActiveSupport::TestCase
     @rest_malformed_response.verify
   end
 
-  test "logs error if RestClient raises exception" do
+  test "#index_by_isin logs error if RestClient raises exception" do
 
     logger_mock = Minitest::Mock.new
     logger_mock.expect :info, nil, [String]

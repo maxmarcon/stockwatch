@@ -28,5 +28,6 @@ module Stockwatch
     # the framework and any gems in your application.
 
     config.figi = config_for(:figi)
+    config.iex = config_for(:iex)
   end
 end

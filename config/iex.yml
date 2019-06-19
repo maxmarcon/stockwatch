@@ -1,0 +1,8 @@
+development:
+  base_url: https://cloud.iexapis.com/v1/
+  symbol_lists:
+    - ref-data/mutual-funds/symbols
+    - ref-data/region/DE/symbols
+    - ref-data/region/FR/symbols
+    - ref-data/otc/symbols
+    - ref-data/symbols
