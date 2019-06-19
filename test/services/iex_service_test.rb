@@ -103,6 +103,12 @@ class IexServiceTest < ActiveSupport::TestCase
 
     assert_equal preexisting + REST_CORRECT_RESPONSE_LIST_2.count + REST_CORRECT_RESPONSE_LIST_1.count-1, IexSymbol.count
 
+    (REST_CORRECT_RESPONSE_LIST_1 + REST_CORRECT_RESPONSE_LIST_2)
+    .reject{ |record| record[:iexId] == "IEX_4A4B355446472D52" } # already existing
+    .each do |record|
+      assert IexSymbol.where(name: record[:name], symbol: record[:symbol], iex_id: record[:iexId]).exists?
+    end
+
     @correct_response.verify
   end
 

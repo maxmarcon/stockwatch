@@ -150,7 +150,7 @@ class FigiServiceTest < ActiveSupport::TestCase
   end
 
 
-  test "#{}index_by_isin updates expired FIGIs" do
+  test "#index_by_isin updates expired FIGIs" do
 
     RestClient.stub :post, @rest_correct_response do
       figis = @service.index_by_isin(ISINS)
