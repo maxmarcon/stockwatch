@@ -4,5 +4,7 @@ development:
     - ref-data/mutual-funds/symbols
     - ref-data/region/DE/symbols
     - ref-data/region/FR/symbols
+    - ref-data/region/GB/symbols
+    - ref-data/region/NL/symbols
     - ref-data/otc/symbols
     - ref-data/symbols

@@ -16,25 +16,54 @@ class IexService
     Rails.logger.info("Deleted all Iex symbols")
   end
 
+  def get_by_isin(isin)
+    if IexSymbol.where(isin: isin).none? && IsinLookUp.where(isin: isin).none?
+      look_up_isin(isin)
+    end
+
+    IexSymbol.where(isin: isin).to_a
+  end
+
   private
+
+  # TODO: add testing
+  def look_up_isin(isin)
+    begin
+      records = parse_response(RestClient.post URI.join(base_url, 'ref-data/isin').to_s, { token: access_token, isin: [isin] }.to_json, {content_type: :json, accept: :json})
+
+      iex_ids = records.map{ |record| record['iexId'] }
+      updated = IexSymbol.where(iex_id: iex_ids).update_all(isin: isin)
+
+      Rails.logger.info("Updated #{updated} symbols with isin #{isin}")
+
+      IsinLookUp.create!(isin: isin)
+
+    rescue RestClient::ExceptionWithResponse => e
+      Rails.logger.error("Received error response from IEX: #{e}")
+    end
+  end
 
   def fetch_symbol_list(symbol_list)
     begin
-      response = RestClient.get URI.join(base_url, symbol_list).to_s, {params: {token: access_token}, accept: :json}
+      records = parse_response(RestClient.get URI.join(base_url, symbol_list).to_s, {params: {token: access_token}, accept: :json})
 
-      json_body = JSON.parse(response.body)
+      Rails.logger.info("Fetched #{records.size} records from list #{symbol_list}")
 
-      raise "Received response of wrong type: #{json_body.class}, expected Array" unless json_body.is_a? Array
-
-      Rails.logger.info("Fetched #{json_body.size} records from list #{symbol_list}")
-
-      saved = json_body.reduce(0){ |saved, record| saved + (store_symbol(record) ? 1 : 0) }
+      saved = records.reduce(0){ |saved, record| saved + (store_symbol(record) ? 1 : 0) }
 
       Rails.logger.info("Stored #{saved} Iex symbols")
 
     rescue RestClient::ExceptionWithResponse => e
       Rails.logger.error("Received error response from IEX: #{e}")
     end
+  end
+
+  def parse_response(response)
+    json_body = JSON.parse(response.body)
+
+    raise "Received response of wrong type: #{json_body.class}, expected Array" unless json_body.is_a? Array
+
+    json_body
   end
 
   def store_symbol(record)
