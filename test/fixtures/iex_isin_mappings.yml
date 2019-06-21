@@ -4,8 +4,19 @@
 # model remove the '{}' from the fixture names and add the columns immediately
 # below each fixture, per the syntax in the comments below
 #
-one: {}
-# column: value
 #
-two: {}
-# column: value
+
+mapping_1:
+  isin: DE0009848119
+  iex_id: IEX_485A304E42592D52
+
+mapping_2:
+  isin: DE0009848119
+  iex_id: IEX_4A4B355446472D52
+
+mapping_3:
+  isin: LU0767751091
+
+mapping_4:
+  isin: LU0868163691
+  iex_id: IEX_4A4B355446472D99

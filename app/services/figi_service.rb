@@ -1,4 +1,14 @@
 class FigiService
+  class UnexpectedResponseError < StandardError
+    def initialize(received, expected = Array)
+      @received = received
+      @expected = expected
+    end
+
+    def message
+      "Received response of wrong type: #{@received.class}, expected #{@expected}"
+    end
+  end
 
   DEFAULT_MAX_AGE = 86400
   REST_CLIENT_OPTIONS = {content_type: :json, accept: :json}
@@ -45,13 +55,15 @@ class FigiService
       process_response(response, isins)
     rescue RestClient::ExceptionWithResponse => e
       Rails.logger.error("Received error response from OpenFIGI: #{e}")
+    rescue UnexpectedResponseError, JSON::ParserError => e
+      Rails.logger.error(e)
     end
   end
 
   def process_response(response, isins)
     json_body = JSON.parse(response.body)
 
-    raise "Received response of wrong type: #{json_body.class}, expected Array" unless json_body.is_a? Array
+    raise UnexpectedResponseError, json_body unless json_body.is_a? Array
 
     saved = 0
 

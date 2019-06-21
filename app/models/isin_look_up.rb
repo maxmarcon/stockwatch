@@ -1,2 +1,0 @@
-class IsinLookUp < ApplicationRecord
-end

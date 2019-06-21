@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2019_06_18_135519) do
+ActiveRecord::Schema.define(version: 2019_06_20_191907) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -25,6 +25,14 @@ ActiveRecord::Schema.define(version: 2019_06_18_135519) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["figi"], name: "index_figis_on_figi", unique: true
+  end
+
+  create_table "iex_isin_mappings", force: :cascade do |t|
+    t.string "isin", null: false
+    t.string "iex_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["isin", "iex_id"], name: "index_iex_isin_mappings_on_isin_and_iex_id", unique: true
   end
 
   create_table "iex_symbols", force: :cascade do |t|

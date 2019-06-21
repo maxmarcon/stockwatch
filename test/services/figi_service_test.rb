@@ -212,28 +212,43 @@ class FigiServiceTest < ActiveSupport::TestCase
     assert_equal 0, Figi.where(isin: NEW_FIGI_ISIN).count
   end
 
-  test "#index_by_isin raises if response has unexpected format" do
+  test "#index_by_isin logs if response has unexpected format" do
+
+    logger_mock = Minitest::Mock.new
+    logger_mock.expect :info, nil, [String]
+    logger_mock.expect :error, nil, [FigiService::UnexpectedResponseError]
 
     RestClient.stub :post, @rest_unexpected_format_response do
-      e = assert_raises RuntimeError do
-        @service.index_by_isin(ISINS)
+      Rails.stub :logger, logger_mock do
+        res = @service.index_by_isin(ISINS)
+        assert res.has_key? OLD_FIGI_ISIN
+        assert res.has_key? FRESH_FIGI_ISIN
+        assert_not res.has_key? NEW_FIGI_ISIN
       end
-
-      assert_equal 'Received response of wrong type: Hash, expected Array', e.message
     end
 
     @rest_unexpected_format_response.verify
+    logger_mock.verify
   end
 
-  test "#index_by_isin raises if response is invalid json" do
+  test "#index_by_isin logs if response is invalid json" do
+
+    logger_mock = Minitest::Mock.new
+    logger_mock.expect :info, nil, [String]
+
+    logger_mock.expect :error, nil, [JSON::ParserError]
 
     RestClient.stub :post, @rest_malformed_response do
-      assert_raises JSON::ParserError do
-        @service.index_by_isin(ISINS)
+      Rails.stub :logger, logger_mock do
+        res = @service.index_by_isin(ISINS)
+        assert res.has_key? OLD_FIGI_ISIN
+        assert res.has_key? FRESH_FIGI_ISIN
+        assert_not res.has_key? NEW_FIGI_ISIN
       end
     end
 
     @rest_malformed_response.verify
+    logger_mock.verify
   end
 
   test "#index_by_isin logs error if RestClient raises exception" do
@@ -244,7 +259,10 @@ class FigiServiceTest < ActiveSupport::TestCase
 
     RestClient.stub :post, @rest_response_throwing_rest_client_error do
       Rails.stub :logger, logger_mock do
-        @service.index_by_isin(ISINS)
+        res = @service.index_by_isin(ISINS)
+        assert res.has_key? OLD_FIGI_ISIN
+        assert res.has_key? FRESH_FIGI_ISIN
+        assert_not res.has_key? NEW_FIGI_ISIN
       end
     end
 

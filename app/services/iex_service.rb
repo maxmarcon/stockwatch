@@ -1,6 +1,17 @@
 class IexService
+  class UnexpectedResponseError < StandardError
+    def initialize(received, expected = Array)
+      @received = received
+      @expected = expected
+    end
+
+    def message
+      "Received response of wrong type: #{@received.class}, expected #{@expected}"
+    end
+  end
 
   SYMBOL_ATTRS = %w(symbol exchange name date type iex_id region currency)
+  ISIN_FORMAT = /^[A-Z]{2}\w{9}\d$/
 
   def initialize(config = {})
     @config = Rails.configuration.iex.merge(Rails.application.credentials.iex, config)
@@ -16,30 +27,40 @@ class IexService
     Rails.logger.info("Deleted all Iex symbols")
   end
 
+  # Fetches IexSymbol(s) by ISIN
   def get_by_isin(isin)
-    if IexSymbol.where(isin: isin).none? && IsinLookUp.where(isin: isin).none?
-      look_up_isin(isin)
-    end
+    isin.upcase!
 
-    IexSymbol.where(isin: isin).to_a
+    if isin =~ ISIN_FORMAT
+      if IexIsinMapping.where(isin: isin).none?
+        look_up_isin(isin)
+      end
+      [true, IexSymbol.joins(:iex_isin_mapping).where(iex_isin_mappings: {isin: isin}).to_a]
+    else
+      [false, :wrong_format]
+    end
   end
 
   private
 
-  # TODO: add testing
   def look_up_isin(isin)
     begin
       records = parse_response(RestClient.post URI.join(base_url, 'ref-data/isin').to_s, { token: access_token, isin: [isin] }.to_json, {content_type: :json, accept: :json})
 
       iex_ids = records.map{ |record| record['iexId'] }
-      updated = IexSymbol.where(iex_id: iex_ids).update_all(isin: isin)
 
-      Rails.logger.info("Updated #{updated} symbols with isin #{isin}")
+      created = if records.empty?
+        IexIsinMapping.create(isin: isin, iex_id: nil)
+      else
+        iex_ids.count{ |iex_id| IexIsinMapping.create(iex_id: iex_id, isin: isin).persisted? }
+      end
 
-      IsinLookUp.create!(isin: isin)
+      Rails.logger.info("created #{created} new isin mappings")
 
     rescue RestClient::ExceptionWithResponse => e
       Rails.logger.error("Received error response from IEX: #{e}")
+    rescue UnexpectedResponseError, JSON::ParserError => e
+      Rails.logger.error(e)
     end
   end
 
@@ -52,16 +73,13 @@ class IexService
       saved = records.reduce(0){ |saved, record| saved + (store_symbol(record) ? 1 : 0) }
 
       Rails.logger.info("Stored #{saved} Iex symbols")
-
-    rescue RestClient::ExceptionWithResponse => e
-      Rails.logger.error("Received error response from IEX: #{e}")
     end
   end
 
   def parse_response(response)
     json_body = JSON.parse(response.body)
 
-    raise "Received response of wrong type: #{json_body.class}, expected Array" unless json_body.is_a? Array
+    raise UnexpectedResponseError, json_body unless json_body.is_a? Array
 
     json_body
   end

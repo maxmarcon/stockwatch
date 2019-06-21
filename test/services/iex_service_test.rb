@@ -61,6 +61,7 @@ REST_CORRECT_RESPONSE_LIST_2 = [
     "name": "ETFS EUR Daily Hedged Wheat (German Cert.)",
     "date": "2019-06-19",
     "type": "et",
+    # this iex_id does not exists in iex_symbols
     "iexId": "IEX_5043564631472D52",
     "region": "DE",
     "currency": "EUR",
@@ -69,6 +70,23 @@ REST_CORRECT_RESPONSE_LIST_2 = [
 ]
 
 RESPONSE_UNEXPECTED_FORMAT = {hello: "baby"}
+
+ISIN_LOOKUP_CORRECT_RESPONSE = [
+  {
+    "symbol": "CNDX-LN",
+    "region": "GB",
+    "exchange": "LON",
+    "iexId": "IEX_485A304E42592D52"
+  },
+  {
+    "symbol": "CNDX-NA",
+    "region": "NL",
+    "exchange": "AMS",
+    "iexId": "IEX_485A304E42592D99"
+  }
+]
+
+MISSING_ISIN = 'DE0009848120'
 
 class IexServiceTest < ActiveSupport::TestCase
 
@@ -91,6 +109,16 @@ class IexServiceTest < ActiveSupport::TestCase
     @rest_response_throwing_rest_client_error = ->(_,_){
       raise RestClient::NotFound
     }
+
+    @rest_post_response_throwing_rest_client_error = ->(_,_,_){
+      raise RestClient::NotFound
+    }
+
+    @isin_lookup_correct_response = Minitest::Mock.new
+    @isin_lookup_correct_response.expect :body, ISIN_LOOKUP_CORRECT_RESPONSE.to_json
+
+    @isin_lookup_empty_response = Minitest::Mock.new
+    @isin_lookup_empty_response.expect :body, [].to_json
   end
 
   test '#init_symbols load symbols from the api' do
@@ -131,11 +159,10 @@ class IexServiceTest < ActiveSupport::TestCase
     @response_invalid_json.verify
   end
 
-
   test "#init_symbols raises if response has unexpected format" do
 
     RestClient.stub :get, @response_unexpected_format do
-      e = assert_raises RuntimeError do
+      e = assert_raises IexService::UnexpectedResponseError do
         @service.init_symbols
       end
 
@@ -145,17 +172,134 @@ class IexServiceTest < ActiveSupport::TestCase
     @response_unexpected_format.verify
   end
 
-  test "#init_symbols logs error if RestClient raises exception" do
+  test "#init_symbols raises if RestClient raises exception" do
+    RestClient.stub :get, @rest_response_throwing_rest_client_error do
+      e = assert_raises RestClient::ExceptionWithResponse do
+        @service.init_symbols
+      end
+    end
+  end
+
+  test "#get_by_isin returns symbols for existing mapping" do
+
+    res, symbols = @service.get_by_isin(iex_isin_mappings(:mapping_1).isin)
+
+    assert res
+    assert_equal 2, symbols.size
+
+    iex_symbols(:iex_1, :iex_2).each do |symbol|
+      assert_includes symbols, symbol
+    end
+  end
+
+  test "#get_by_isin calls API for non-existing mapping" do
+
+    RestClient.stub :post, @isin_lookup_correct_response do
+      res, symbols = @service.get_by_isin(MISSING_ISIN)
+
+      assert res
+
+      assert_equal 1, symbols.size
+      assert_includes symbols, iex_symbols(:iex_1)
+    end
+
+    assert_equal 2, IexIsinMapping.where(isin: MISSING_ISIN).count
+    @isin_lookup_correct_response.verify
+  end
+
+  test "#get_by_isin records the fact that an API call did not return a mapping" do
+
+    RestClient.stub :post, @isin_lookup_empty_response do
+      res, symbols = @service.get_by_isin(MISSING_ISIN)
+
+      assert res
+
+      assert symbols.empty?
+    end
+
+    assert IexIsinMapping.where(isin: MISSING_ISIN, iex_id: nil).exists?
+    @isin_lookup_empty_response.verify
+  end
+
+
+  test "#get_by_isin logs if response from API is invalid json" do
+
+    logger_mock = Minitest::Mock.new
+    logger_mock.expect :error, nil, [JSON::ParserError]
+
+    RestClient.stub :post, @response_invalid_json do
+      Rails.stub :logger, logger_mock do
+        res, symbols = @service.get_by_isin(MISSING_ISIN)
+
+        assert res
+
+        assert symbols.empty?
+      end
+    end
+
+    @response_invalid_json.verify
+    logger_mock.verify
+    assert IexIsinMapping.where(isin: MISSING_ISIN).none?
+
+  end
+
+  test "#get_by_isin logs if response from has invalid format" do
+
+    logger_mock = Minitest::Mock.new
+    logger_mock.expect :error, nil, [IexService::UnexpectedResponseError]
+
+    RestClient.stub :post, @response_unexpected_format do
+      Rails.stub :logger, logger_mock do
+        res, symbols = @service.get_by_isin(MISSING_ISIN)
+
+        assert res
+
+        assert symbols.empty?
+      end
+    end
+
+    @response_unexpected_format.verify
+    logger_mock.verify
+    assert IexIsinMapping.where(isin: MISSING_ISIN).none?
+  end
+
+  test "#get_by_isin logs error if RestClient raises exception" do
+
     logger_mock = Minitest::Mock.new
     logger_mock.expect :error, nil, ["Received error response from IEX: Not Found"]
-    logger_mock.expect :error, nil, ["Received error response from IEX: Not Found"]
 
-    RestClient.stub :get, @rest_response_throwing_rest_client_error do
+    RestClient.stub :post, @rest_post_response_throwing_rest_client_error do
       Rails.stub :logger, logger_mock do
-        @service.init_symbols
+        res, symbols = @service.get_by_isin(MISSING_ISIN)
+
+        assert res
+
+        assert symbols.empty?
       end
     end
 
     logger_mock.verify
+    assert IexIsinMapping.where(isin: MISSING_ISIN).none?
+  end
+
+  test "#get_by_isin returns error if isin has invalid format" do
+    res, error = @service.get_by_isin("DE12345678AI")
+
+    assert_not res
+    assert_equal :wrong_format, error
+  end
+
+  test "#get_by_isin returns empty array for isin whose look-up failed" do
+    res, symbols = @service.get_by_isin(iex_isin_mappings(:mapping_3).isin)
+
+    assert res
+    assert symbols.empty?
+  end
+
+  test "#get_by_isin returns empty array for isin without symbols in iex_symbols" do
+    res, symbols = @service.get_by_isin(iex_isin_mappings(:mapping_4).isin)
+
+    assert res
+    assert symbols.empty?
   end
 end
