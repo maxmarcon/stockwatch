@@ -1,6 +1,4 @@
 class ApiService
-  DEFAULT_CALL_MAX_AGE = 12.hours
-
   class UnexpectedResponseError < StandardError
     def initialize(received, expected = Array)
       @received = received
@@ -36,11 +34,11 @@ class ApiService
   end
 
   def max_age
-    age = @config.fetch("call_max_age", DEFAULT_CALL_MAX_AGE)
-    if !age.nil? && !age.is_a?(ActiveSupport::Duration)
-      age.seconds
-    else
+    age = @config['call_max_age']
+    if age.nil? || age.is_a?(ActiveSupport::Duration)
       age
+    else
+      age.seconds
     end
   end
 

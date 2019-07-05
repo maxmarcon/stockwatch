@@ -1,7 +1,6 @@
 class IexService
   SYMBOL_ATTRS = %w(symbol exchange name date type iex_id region currency)
   ISIN_FORMAT = /^[A-Z]{2}\w{9}\d$/
-  DEFAULT_MAPPING_MAX_AGE = 1.day
 
   def initialize(config = {})
     @config = Rails.configuration.iex.merge(Rails.application.credentials.iex, config.except('api_service'))
@@ -20,8 +19,8 @@ class IexService
   end
 
   def mapping_max_age
-    max_age = @config.fetch('mapping_max_age', DEFAULT_MAPPING_MAX_AGE)
-    if max_age.is_a?(ActiveSupport::Duration)
+    max_age = @config['mapping_max_age']
+    if max_age.nil? || max_age.is_a?(ActiveSupport::Duration)
       max_age
     else
       max_age.seconds

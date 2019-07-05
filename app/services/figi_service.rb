@@ -1,6 +1,4 @@
 class FigiService
-
-  DEFAULT_MAPPING_MAX_AGE = 1.day
   PERMITTED_PARAMS = %w(name ticker unique_id exch_code)
 
   def initialize(config = {})
@@ -19,11 +17,11 @@ class FigiService
   end
 
   def mapping_max_age
-    max_age = @config.fetch('mapping_max_age', DEFAULT_MAPPING_MAX_AGE)
-    unless max_age.is_a?(ActiveSupport::Duration)
-      max_age.seconds
-    else
+    max_age = @config['mapping_max_age']
+    if max_age.nil? || max_age.is_a?(ActiveSupport::Duration)
       max_age
+    else
+      max_age.seconds
     end
   end
 
