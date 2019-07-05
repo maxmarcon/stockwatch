@@ -29,5 +29,6 @@ module Stockwatch
 
     config.figi = config_for(:figi)
     config.iex = config_for(:iex)
+    config.api_service = config_for(:api_service)
   end
 end
