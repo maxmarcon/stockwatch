@@ -14,13 +14,10 @@ class ApiService
 
   def initialize(config = {})
     @config = {
-      "figi" => Rails.configuration.figi.merge(config.fetch("figi", {})),
-      "iex" => Rails.configuration.iex.merge(
-        Rails.application.credentials.iex,
-        config.fetch("iex", {})
-      ),
-      call_max_age: Rails.configuration.api_service['call_max_age'] || DEFAULT_CALL_MAX_AGE
-    }
+      "figi" => Rails.configuration.figi,
+      "iex" => Rails.configuration.iex.merge(Rails.application.credentials.iex),
+      "call_max_age" => Rails.configuration.api_service['call_max_age'] || DEFAULT_CALL_MAX_AGE
+    }.merge(config)
   end
 
   def base_url(api)
@@ -43,7 +40,7 @@ class ApiService
   end
 
   def max_age
-    age = @config[:call_max_age]
+    age = @config["call_max_age"]
     if !age.is_a?(ActiveSupport::Duration)
       age.seconds
     else
@@ -57,12 +54,19 @@ class ApiService
     if ApiCall.called?(api, call_hash, max_age)
       [false, :called_recently]
     else
-
-      if access_token(api)
-        params[:token] = access_token(api)
+      effective_params = if access_token(api)
+        {token: access_token(api)}
+      else
+        {}
       end
 
-      response = RestClient.post URI.join(base_url(api), path).to_s, params.to_json, {content_type: :json, accept: :json}
+      effective_params.merge(params)
+
+      response = RestClient.post(
+        URI.join(base_url(api), path).to_s,
+        effective_params.to_json,
+        {content_type: :json, accept: :json}
+      )
 
       response_body = JSON.parse(response.body)
 
