@@ -4,8 +4,8 @@ class FigiService
   PERMITTED_PARAMS = %w(name ticker unique_id exch_code)
 
   def initialize(config = {})
-    @config = Rails.configuration.figi.merge(config.reject{ |k| k == 'api_service'})
-    @api_service = ApiService.new({"figi" => @config}.merge(config.fetch("api_service", {})))
+    @config = Rails.configuration.figi.merge(config.except('api_service'))
+    @api_service = ApiService.new({"figi" => @config}.merge(config.fetch('api_service', {})))
   end
 
   def index_by_isin(isins, force_update: false)

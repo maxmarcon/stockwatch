@@ -4,8 +4,8 @@ class IexService
   DEFAULT_MAPPING_MAX_AGE = 1.day
 
   def initialize(config = {})
-    @config = Rails.configuration.iex.merge(Rails.application.credentials.iex, config.reject{ |k| k == 'api_service'})
-    @api_service = ApiService.new({"iex" => @config}.merge(config.fetch("api_service", {})))
+    @config = Rails.configuration.iex.merge(Rails.application.credentials.iex, config.except('api_service'))
+    @api_service = ApiService.new({"iex" => @config}.merge(config.fetch('api_service', {})))
 
     RestClient.log = Rails.logger
   end

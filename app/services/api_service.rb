@@ -1,4 +1,6 @@
 class ApiService
+  DEFAULT_CALL_MAX_AGE = 12.hours
+
   class UnexpectedResponseError < StandardError
     def initialize(received, expected = Array)
       @received = received
@@ -9,8 +11,6 @@ class ApiService
       "Received response of wrong type: #{@received.class}, expected #{@expected}"
     end
   end
-
-  DEFAULT_CALL_MAX_AGE = 12.hours
 
   def initialize(config = {})
     @config = Rails.configuration.api_service.merge(config)
@@ -52,14 +52,16 @@ class ApiService
     execute(api, :post, path, params, expected)
   end
 
-  # maybe add a way to always perform the call and skip the ApiCall check?
   def execute(api, api_method, path, params = {}, expected = Array)
     call_hash = self.class.compute_hash(path, params)
 
     if ApiCall.called?(api, call_hash, max_age)
+      Rails.logger.info("skipping API call to #{[api, api_method, path]} because executed in the last #{max_age.inspect}")
+
       [false, :called_recently]
     else
       if params.is_a?(Hash)
+        # let's add credentials if any are needed
         effective_params = if access_token(api)
           {token: access_token(api)}
         else
