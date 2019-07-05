@@ -12,6 +12,6 @@ old_call:
   api: iex
   call_digest: WXYZ
   updated_at: <%= 1.week.ago %>
-  created_at: <%= 1.week.ago %>
+  created_at: <%= 1.year.ago %>
 
 # column: value
