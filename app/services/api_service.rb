@@ -10,14 +10,10 @@ class ApiService
     end
   end
 
-  DEFAULT_CALL_MAX_AGE = 1.hour
+  DEFAULT_CALL_MAX_AGE = 12.hours
 
   def initialize(config = {})
-    @config = {
-      "figi" => Rails.configuration.figi,
-      "iex" => Rails.configuration.iex.merge(Rails.application.credentials.iex),
-      "call_max_age" => Rails.configuration.api_service['call_max_age'] || DEFAULT_CALL_MAX_AGE
-    }.merge(config)
+    @config = Rails.configuration.api_service.merge(config)
   end
 
   def base_url(api)
@@ -40,8 +36,8 @@ class ApiService
   end
 
   def max_age
-    age = @config["call_max_age"]
-    if !age.is_a?(ActiveSupport::Duration)
+    age = @config.fetch("call_max_age", DEFAULT_CALL_MAX_AGE)
+    if !age.nil? && !age.is_a?(ActiveSupport::Duration)
       age.seconds
     else
       age

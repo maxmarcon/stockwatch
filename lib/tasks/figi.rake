@@ -5,7 +5,7 @@ namespace :figi do
     prompt = TTY::Prompt.new
 
     if args.any?
-      FigiService.new.index_by_isin(args.to_a).each do |isin, figis|
+      FigiService.new({'api_service' => {'call_max_age' => 1}}).index_by_isin(args.to_a).each do |isin, figis|
         prompt.say "#{isin}: found #{figis.count} isins"
       end
     else

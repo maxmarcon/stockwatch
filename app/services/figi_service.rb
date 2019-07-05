@@ -4,8 +4,8 @@ class FigiService
   PERMITTED_PARAMS = %w(name ticker unique_id exch_code)
 
   def initialize(config = {})
-    @config = Rails.configuration.figi.merge(config)
-    @api_service = ApiService.new({"figi" => config})
+    @config = Rails.configuration.figi.merge(config.reject{ |k| k == 'api_service'})
+    @api_service = ApiService.new({"figi" => @config}.merge(config.fetch("api_service", {})))
   end
 
   def index_by_isin(isins, force_update: false)
@@ -19,7 +19,7 @@ class FigiService
   end
 
   def mapping_max_age
-    max_age = @config['mapping_max_age'] || DEFAULT_MAPPING_MAX_AGE
+    max_age = @config.fetch('mapping_max_age', DEFAULT_MAPPING_MAX_AGE)
     unless max_age.is_a?(ActiveSupport::Duration)
       max_age.seconds
     else
@@ -67,12 +67,15 @@ class FigiService
       if mapping.has_key?('data')
         records = mapping['data']
 
-        saved += records.reduce(0) do
-          |saved, record|
-          saved + (create_or_update_figi_from_record(record, isin) ? 1 : 0)
+        if records.any?
+          # remove FIGIs that are going to be updated
+          Figi.where(isin: isin).delete_all
+
+          saved += records.reduce(0) do
+            |saved, record|
+            saved + (store_figi(record, isin) ? 1 : 0)
+          end
         end
-        # remove stale FIGIs for this ISIN
-        Figi.where(isin: isin).where.not(figi: records.map{ |r| r['figi'] }).delete_all if records.any?
       else
         Rails.logger.error("Results for ISIN #{isin} not found. Error: #{mapping['error']}")
       end
@@ -81,10 +84,9 @@ class FigiService
     Rails.logger.info("Saved #{saved} figis")
   end
 
-  def create_or_update_figi_from_record(record, isin)
+  def store_figi(record, isin)
 
-    figi = Figi.find_or_initialize_by(figi: record['figi'])
-    figi.isin = isin
+    figi = Figi.new(figi: record['figi'], isin: isin)
     figi.assign_attributes(
       record.map{ |k,v| [k.underscore, v]}.to_h.select{ |k,_| k.in? PERMITTED_PARAMS }
     )

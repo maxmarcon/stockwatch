@@ -4,7 +4,7 @@ namespace :iex do
     prompt = TTY::Prompt.new
 
     if IexSymbol.none? || prompt.yes?("There are already Iex symbols present. Really refetch all symbols?")
-      IexService.new.init_symbols
+      IexService.new({'api_service' => {'call_max_age' => 1}}).init_symbols
       prompt.ok("There are now #{IexSymbol.count} symbols")
     end
   end
