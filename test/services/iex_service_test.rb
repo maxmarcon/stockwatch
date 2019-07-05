@@ -95,7 +95,8 @@ class IexServiceTest < ActiveSupport::TestCase
       {
         "base_url" => "https://fake.api.com/",
         access_token: "FAKE_TOKEN",
-        'symbol_lists' => SYMBOL_LISTS
+        'symbol_lists' => SYMBOL_LISTS,
+        'mapping_max_age' => 2.weeks
       }
     )
 
@@ -112,6 +113,10 @@ class IexServiceTest < ActiveSupport::TestCase
 
     @rest_post_response_throwing_rest_client_error = ->(_,_,_){
       raise RestClient::NotFound
+    }
+
+    @rest_should_never_be_called = ->(_,_,_) {
+      raise "should not be called"
     }
 
     @isin_lookup_correct_response = Minitest::Mock.new
@@ -162,7 +167,7 @@ class IexServiceTest < ActiveSupport::TestCase
   test "#init_symbols raises if response has unexpected format" do
 
     RestClient.stub :get, @response_unexpected_format do
-      e = assert_raises IexService::UnexpectedResponseError do
+      e = assert_raises ApiService::UnexpectedResponseError do
         @service.init_symbols
       end
 
@@ -180,16 +185,33 @@ class IexServiceTest < ActiveSupport::TestCase
     end
   end
 
-  test "#get_by_isin returns symbols for existing mapping" do
+  test "#get_by_isin does not call API, returns symbols for existing new mapping" do
 
-    res, symbols = @service.get_by_isin(iex_isin_mappings(:mapping_1).isin)
-
-    assert res
-    assert_equal 2, symbols.size
-
-    iex_symbols(:iex_1, :iex_2).each do |symbol|
-      assert_includes symbols, symbol
+    RestClient.stub :post, @rest_should_never_be_called do
+      res, symbols = @service.get_by_isin(iex_isin_mappings(:mapping_1).isin)
+      assert res
+      assert_equal 2, symbols.size
+      iex_symbols(:iex_1, :iex_2).each do |symbol|
+        assert_includes symbols, symbol
+      end
     end
+  end
+
+  test "#get_by_isin calls API for old mapping" do
+    old_isin = iex_isin_mappings(:old_mapping).isin
+
+    RestClient.stub :post, @isin_lookup_correct_response do
+      res, symbols = @service.get_by_isin(old_isin)
+
+      assert res
+
+      assert_equal 1, symbols.size
+      assert_includes symbols, iex_symbols(:iex_1)
+    end
+
+    @isin_lookup_correct_response.verify
+    # 1 stale mapping should have been deleted and 2 new ones be created
+    assert_equal 2, IexIsinMapping.where(isin: old_isin).count
   end
 
   test "#get_by_isin calls API for non-existing mapping" do
@@ -240,13 +262,12 @@ class IexServiceTest < ActiveSupport::TestCase
     @response_invalid_json.verify
     logger_mock.verify
     assert IexIsinMapping.where(isin: MISSING_ISIN).none?
-
   end
 
   test "#get_by_isin logs if response from has invalid format" do
 
     logger_mock = Minitest::Mock.new
-    logger_mock.expect :error, nil, [IexService::UnexpectedResponseError]
+    logger_mock.expect :error, nil, [ApiService::UnexpectedResponseError]
 
     RestClient.stub :post, @response_unexpected_format do
       Rails.stub :logger, logger_mock do

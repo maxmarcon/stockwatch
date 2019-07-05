@@ -48,25 +48,49 @@ class ApiService
     end
   end
 
+  def get(api, path, params = {}, expected = Array)
+    execute(api, :get, path, params, expected)
+  end
+
   def post(api, path, params = {}, expected = Array)
+    execute(api, :post, path, params, expected)
+  end
+
+  # maybe add a way to always perform the call and skip the ApiCall check?
+  def execute(api, api_method, path, params = {}, expected = Array)
     call_hash = self.class.compute_hash(path, params)
 
     if ApiCall.called?(api, call_hash, max_age)
       [false, :called_recently]
     else
-      effective_params = if access_token(api)
-        {token: access_token(api)}
+      if params.is_a?(Hash)
+        effective_params = if access_token(api)
+          {token: access_token(api)}
+        else
+          {}
+        end
+
+        effective_params.merge(params)
       else
-        {}
+        effective_params = params.dup
       end
 
-      effective_params.merge(params)
+      response = case api_method.to_sym
+      when :post
+        RestClient.post(
+          URI.join(base_url(api), path).to_s,
+          effective_params.to_json,
+          {content_type: :json, accept: :json}
+        )
 
-      response = RestClient.post(
-        URI.join(base_url(api), path).to_s,
-        effective_params.to_json,
-        {content_type: :json, accept: :json}
-      )
+      when :get
+        RestClient.get(
+          URI.join(base_url(api), path).to_s,
+          {content_type: :json, accept: :json, params: effective_params}
+        )
+      else
+        raise "Supported methods are get or post, was passed #{api_method}"
+      end
 
       response_body = JSON.parse(response.body)
 

@@ -20,3 +20,8 @@ mapping_3:
 mapping_4:
   isin: LU0868163691
   iex_id: IEX_4A4B355446472D99
+
+old_mapping:
+  isin: LU0868163699
+  iex_id: IEX_4A4B355446472D99
+  updated_at: <%= 1.month.ago %>

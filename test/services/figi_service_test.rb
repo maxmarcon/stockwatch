@@ -121,7 +121,7 @@ class FigiServiceTest < ActiveSupport::TestCase
   ]
 
   def setup
-    @service = FigiService.new("figi" => {"base_url" => "https://fake.api.com"})
+    @service = FigiService.new({"base_url" => "https://fake.api.com", "mapping_max_age" => 2.hours})
     @rest_correct_response = Minitest::Mock.new.expect :body, REST_CORRECT_RESPONSE.to_json
     @rest_unexpected_format_response = Minitest::Mock.new.expect :body, REST_UNEXPECTED_FORMAT_RESPONSE.to_json
     @rest_malformed_response = Minitest::Mock.new.expect :body, "{NOT JSON"
@@ -250,7 +250,7 @@ class FigiServiceTest < ActiveSupport::TestCase
     logger_mock.verify
   end
 
-  test "#index_by_isin logs error if RestClient raises exception" do
+  test "#index_by_isin logs error if RestClient exception is raised" do
 
     logger_mock = Minitest::Mock.new
     logger_mock.expect :info, nil, [String]

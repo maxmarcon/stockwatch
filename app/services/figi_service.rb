@@ -1,22 +1,30 @@
 class FigiService
 
-  DEFAULT_MAX_AGE = 86400
+  DEFAULT_MAPPING_MAX_AGE = 1.day
   PERMITTED_PARAMS = %w(name ticker unique_id exch_code)
 
   def initialize(config = {})
     @config = Rails.configuration.figi.merge(config)
-    @max_age = (@config['mapping_max_age'] || DEFAULT_MAX_AGE).seconds
-    @api_service = ApiService.new(config)
+    @api_service = ApiService.new({"figi" => config})
   end
 
   def index_by_isin(isins, force_update: false)
     updated_at = Figi.where(isin: isins).group(:isin).minimum(:updated_at)
 
-    isins_to_update = isins.select{ |isin| force_update || updated_at[isin].nil? || updated_at[isin] < @max_age.ago }
+    isins_to_update = isins.select{ |isin| force_update || updated_at[isin].nil? || updated_at[isin] < mapping_max_age.ago }
 
     update_isins(isins_to_update) if isins_to_update.any?
 
     Figi.where(isin: isins).group_by(&:isin)
+  end
+
+  def mapping_max_age
+    max_age = @config['mapping_max_age'] || DEFAULT_MAPPING_MAX_AGE
+    unless max_age.is_a?(ActiveSupport::Duration)
+      max_age.seconds
+    else
+      max_age
+    end
   end
 
   def delete_by_isin(isins)
