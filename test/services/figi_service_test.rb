@@ -121,7 +121,7 @@ class FigiServiceTest < ActiveSupport::TestCase
   ]
 
   def setup
-    @service = FigiService.new({"base_url" => "https://fake.api.com"})
+    @service = FigiService.new("figi" => {"base_url" => "https://fake.api.com"})
     @rest_correct_response = Minitest::Mock.new.expect :body, REST_CORRECT_RESPONSE.to_json
     @rest_unexpected_format_response = Minitest::Mock.new.expect :body, REST_UNEXPECTED_FORMAT_RESPONSE.to_json
     @rest_malformed_response = Minitest::Mock.new.expect :body, "{NOT JSON"
@@ -216,7 +216,7 @@ class FigiServiceTest < ActiveSupport::TestCase
 
     logger_mock = Minitest::Mock.new
     logger_mock.expect :info, nil, [String]
-    logger_mock.expect :error, nil, [FigiService::UnexpectedResponseError]
+    logger_mock.expect :error, nil, [ApiService::UnexpectedResponseError]
 
     RestClient.stub :post, @rest_unexpected_format_response do
       Rails.stub :logger, logger_mock do
@@ -235,7 +235,6 @@ class FigiServiceTest < ActiveSupport::TestCase
 
     logger_mock = Minitest::Mock.new
     logger_mock.expect :info, nil, [String]
-
     logger_mock.expect :error, nil, [JSON::ParserError]
 
     RestClient.stub :post, @rest_malformed_response do

@@ -1,26 +1,12 @@
 class FigiService
-  class UnexpectedResponseError < StandardError
-    def initialize(received, expected = Array)
-      @received = received
-      @expected = expected
-    end
-
-    def message
-      "Received response of wrong type: #{@received.class}, expected #{@expected}"
-    end
-  end
 
   DEFAULT_MAX_AGE = 86400
-  REST_CLIENT_OPTIONS = {content_type: :json, accept: :json}
   PERMITTED_PARAMS = %w(name ticker unique_id exch_code)
 
   def initialize(config = {})
     @config = Rails.configuration.figi.merge(config)
-    @base_url = @config['base_url']
-    @max_age = (@config['max_age'] || DEFAULT_MAX_AGE).seconds
-    RestClient.log = Rails.logger
-
-    raise 'base_url must be specified in figi configuration' unless @base_url
+    @max_age = (@config['mapping_max_age'] || DEFAULT_MAX_AGE).seconds
+    @api_service = ApiService.new(config)
   end
 
   def index_by_isin(isins, force_update: false)
@@ -49,25 +35,24 @@ class FigiService
     Rails.logger.info("fetching ISINs #{isins}")
 
     begin
-      response = RestClient.post URI.join(@base_url, "mapping").to_s,
-        isins.map{ |isin| {idType: 'ID_ISIN', idValue: isin}}.to_json, REST_CLIENT_OPTIONS
+      status, response_body = @api_service.post(:figi,
+                                                "mapping",
+                                                isins.map{ |isin| {idType: 'ID_ISIN', idValue: isin}},
+                                                Array
+                                                )
 
-      process_response(response, isins)
+      process_response(response_body, isins) if status
     rescue RestClient::ExceptionWithResponse => e
       Rails.logger.error("Received error response from OpenFIGI: #{e}")
-    rescue UnexpectedResponseError, JSON::ParserError => e
+    rescue ApiService::UnexpectedResponseError, JSON::ParserError => e
       Rails.logger.error(e)
     end
   end
 
   def process_response(response, isins)
-    json_body = JSON.parse(response.body)
-
-    raise UnexpectedResponseError, json_body unless json_body.is_a? Array
-
     saved = 0
 
-    json_body.each_with_index do |mapping, i|
+    response.each_with_index do |mapping, i|
       # Results for isins[i]
       isin = isins[i]
 

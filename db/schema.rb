@@ -10,10 +10,18 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2019_06_20_191907) do
+ActiveRecord::Schema.define(version: 2019_07_04_124745) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
+
+  create_table "api_calls", force: :cascade do |t|
+    t.string "api", null: false
+    t.string "call_digest", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["api", "call_digest"], name: "index_api_calls_on_api_and_call_digest", unique: true
+  end
 
   create_table "figis", force: :cascade do |t|
     t.string "figi", null: false
