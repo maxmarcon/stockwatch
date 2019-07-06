@@ -17,7 +17,8 @@ class ApiServiceTest < ActiveSupport::TestCase
 
     @api_service = ApiService.new({
                                     "iex" => {
-                                      "base_url" => "https://fakeapi.com"
+                                      "base_url" => "https://fakeapi.com",
+                                      :access_token => "FAKE_TOKEN"
                                     },
                                     "call_max_age" => CALL_MAX_AGE
     })

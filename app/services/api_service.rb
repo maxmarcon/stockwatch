@@ -1,4 +1,6 @@
 class ApiService
+  API_OPTIONS = {content_type: :json, accept: :json}
+
   class UnexpectedResponseError < StandardError
     def initialize(received, expected = Array)
       @received = received
@@ -76,13 +78,13 @@ class ApiService
         RestClient.post(
           URI.join(base_url(api), path).to_s,
           effective_params.to_json,
-          {content_type: :json, accept: :json}
+          API_OPTIONS
         )
 
       when :get
         RestClient.get(
           URI.join(base_url(api), path).to_s,
-          {content_type: :json, accept: :json, params: effective_params}
+          API_OPTIONS.merge({params: effective_params})
         )
       else
         raise "Supported methods are get or post, was passed #{api_method}"

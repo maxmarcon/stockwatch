@@ -65,14 +65,13 @@ class FigiService
       if mapping.has_key?('data')
         records = mapping['data']
 
-        if records.any?
-          # remove FIGIs that are going to be updated
-          Figi.where(isin: isin).delete_all
+        # remove FIGIs that are going to be updated
+        deleted = Figi.where(isin: isin).delete_all
+        Rails.logger.info("Deleted #{deleted} stale figis")
 
-          saved += records.reduce(0) do
-            |saved, record|
-            saved + (store_figi(record, isin) ? 1 : 0)
-          end
+        saved += records.reduce(0) do
+          |saved, record|
+          saved + (store_figi(record, isin) ? 1 : 0)
         end
       else
         Rails.logger.error("Results for ISIN #{isin} not found. Error: #{mapping['error']}")
