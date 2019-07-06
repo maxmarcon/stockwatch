@@ -4,13 +4,15 @@ module ErrorHandling
   extend ActiveSupport::Concern
 
   included do
-    rescue_from Exception, with: :handle_internal_error
+    unless Rails.env.development?
+      rescue_from Exception, with: :handle_internal_error
+    end
     rescue_from ActiveRecord::RecordNotFound, with: :handle_not_found
     rescue_from ActionController::BadRequest, with: :handle_bad_request
   end
 
-  def handle_internal_error(e = nil)
-    render_error(500, Rails.env.development? && e ? e : 'An internal error has occurred')
+  def handle_internal_error
+    render_error(500, 'An internal error has occurred')
   end
 
   def handle_not_found(e = nil)
