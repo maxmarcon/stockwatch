@@ -10,15 +10,15 @@ module ErrorHandling
   end
 
   def handle_internal_error(e = nil)
-    render_error(500, Rails.env.development? && e&.message ? e.message : 'An internal error has occurred')
+    render_error(500, Rails.env.development? && e ? e : 'An internal error has occurred')
   end
 
   def handle_not_found(e = nil)
-    render_error(404, e&.message || 'Not Found')
+    render_error(404, e || 'Not Found')
   end
 
   def handle_bad_request(e = nil)
-    render_error(400, e&.message || 'Bad Request')
+    render_error(400, e || 'Bad Request')
   end
 
   private
@@ -35,5 +35,7 @@ module ErrorHandling
         }, status: status
       }
     end
+  rescue ActionController::UnknownFormat
+    render "error/error.html", locals: {status: status, message: message}, status: status
   end
 end
