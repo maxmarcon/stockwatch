@@ -60,31 +60,21 @@ class ApiService
 
       [false, :called_recently]
     else
-      if params.is_a?(Hash)
-        # let's add credentials if any are needed
-        effective_params = if access_token(api)
-          {token: access_token(api)}
-        else
-          {}
-        end
-
-        effective_params.merge(params)
-      else
-        effective_params = params.dup
+      if params.is_a?(Hash) && access_token(api)
+        params = params.merge({token: access_token(api)})
       end
 
       response = case api_method.to_sym
       when :post
         RestClient.post(
           URI.join(base_url(api), path).to_s,
-          effective_params.to_json,
+          params.to_json,
           API_OPTIONS
         )
-
       when :get
         RestClient.get(
           URI.join(base_url(api), path).to_s,
-          API_OPTIONS.merge({params: effective_params})
+          API_OPTIONS.merge({params: params})
         )
       else
         raise "Supported methods are get or post, was passed #{api_method}"

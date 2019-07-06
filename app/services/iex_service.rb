@@ -28,7 +28,7 @@ class IexService
   end
 
   # Fetches IexSymbol(s) by ISIN
-  def get_symbol_by_isin(isin)
+  def get_symbols_by_isin(isin)
     isin.upcase!
 
     if isin =~ ISIN_FORMAT
@@ -42,8 +42,19 @@ class IexService
     end
   end
 
-  def fetch_time_series(iex_symbol, period)
+  def get_chart_data(period, iex_id: nil, symbol: nil)
+    raise "You need to specify either a symbol or a iex_id" if [iex_id, symbol].all?(&:nil?)
+    raise "You can only specify either a symbol or a iex_id but not both" if [iex_id, symbol].all?
 
+    if iex_id
+      symbol = IexSymbol.find_by!(iex_id: iex_id)
+    end
+
+    if symbol.is_a?(IexSymbol)
+      symbol = symbol.symbol
+    end
+
+    symbol
   end
 
 
@@ -76,16 +87,14 @@ class IexService
   end
 
   def fetch_symbol_list(symbol_list)
-    begin
-      status, response_body = @api_service.get :iex, symbol_list
+    status, response_body = @api_service.get :iex, symbol_list
 
-      if status
-        Rails.logger.info("Fetched #{response_body.size} records from list #{symbol_list}")
+    if status
+      Rails.logger.info("Fetched #{response_body.size} records from list #{symbol_list}")
 
-        saved = response_body.reduce(0){ |saved, record| saved + (store_symbol(record) ? 1 : 0) }
+      saved = response_body.reduce(0){ |saved, record| saved + (store_symbol(record) ? 1 : 0) }
 
-        Rails.logger.info("Stored #{saved} Iex symbols")
-      end
+      Rails.logger.info("Stored #{saved} Iex symbols")
     end
   end
 

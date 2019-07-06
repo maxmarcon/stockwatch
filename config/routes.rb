@@ -1,9 +1,8 @@
 Rails.application.routes.draw do
 
   namespace 'v1' do
-    namespace 'api', path: '/' do
-      get 'test'
-    end
+    get 'symbols/:isin', to: "api#symbols"
+    get 'historical_data/:period', to: "api#historical_data"
   end
 
   get 'app', to: 'webapp#home'
@@ -11,5 +10,5 @@ Rails.application.routes.draw do
   root to: redirect('app')
   # For details on the DSL available within this file, see http://guides.rubyonrails.org/routing.html
 
-  match '*path', to: 'error#not_found', via: :all
+  match '*path', to: 'error#handle_not_found', via: :all
 end

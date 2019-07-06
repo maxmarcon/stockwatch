@@ -185,10 +185,10 @@ class IexServiceTest < ActiveSupport::TestCase
     end
   end
 
-  test "#get_symbol_by_isin does not call API, returns symbols for existing new mapping" do
+  test "#get_symbols_by_isin does not call API, returns symbols for existing new mapping" do
 
     RestClient.stub :post, @rest_should_never_be_called do
-      res, symbols = @service.get_symbol_by_isin(iex_isin_mappings(:mapping_1).isin)
+      res, symbols = @service.get_symbols_by_isin(iex_isin_mappings(:mapping_1).isin)
       assert res
       assert_equal 2, symbols.size
       iex_symbols(:iex_1, :iex_2).each do |symbol|
@@ -197,11 +197,11 @@ class IexServiceTest < ActiveSupport::TestCase
     end
   end
 
-  test "#get_symbol_by_isin calls API for old mapping" do
+  test "#get_symbols_by_isin calls API for old mapping" do
     old_isin = iex_isin_mappings(:old_mapping).isin
 
     RestClient.stub :post, @isin_lookup_correct_response do
-      res, symbols = @service.get_symbol_by_isin(old_isin)
+      res, symbols = @service.get_symbols_by_isin(old_isin)
 
       assert res
 
@@ -214,10 +214,10 @@ class IexServiceTest < ActiveSupport::TestCase
     assert_equal 2, IexIsinMapping.where(isin: old_isin).count
   end
 
-  test "#get_symbol_by_isin calls API for non-existing mapping" do
+  test "#get_symbols_by_isin calls API for non-existing mapping" do
 
     RestClient.stub :post, @isin_lookup_correct_response do
-      res, symbols = @service.get_symbol_by_isin(MISSING_ISIN)
+      res, symbols = @service.get_symbols_by_isin(MISSING_ISIN)
 
       assert res
 
@@ -229,10 +229,10 @@ class IexServiceTest < ActiveSupport::TestCase
     @isin_lookup_correct_response.verify
   end
 
-  test "#get_symbol_by_isin records the fact that an API call did not return a mapping" do
+  test "#get_symbols_by_isin records the fact that an API call did not return a mapping" do
 
     RestClient.stub :post, @isin_lookup_empty_response do
-      res, symbols = @service.get_symbol_by_isin(MISSING_ISIN)
+      res, symbols = @service.get_symbols_by_isin(MISSING_ISIN)
 
       assert res
 
@@ -244,14 +244,14 @@ class IexServiceTest < ActiveSupport::TestCase
   end
 
 
-  test "#get_symbol_by_isin logs if response from API is invalid json" do
+  test "#get_symbols_by_isin logs if response from API is invalid json" do
 
     logger_mock = Minitest::Mock.new
     logger_mock.expect :error, nil, [JSON::ParserError]
 
     RestClient.stub :post, @response_invalid_json do
       Rails.stub :logger, logger_mock do
-        res, symbols = @service.get_symbol_by_isin(MISSING_ISIN)
+        res, symbols = @service.get_symbols_by_isin(MISSING_ISIN)
 
         assert res
 
@@ -264,14 +264,14 @@ class IexServiceTest < ActiveSupport::TestCase
     assert IexIsinMapping.where(isin: MISSING_ISIN).none?
   end
 
-  test "#get_symbol_by_isin logs if response from has invalid format" do
+  test "#get_symbols_by_isin logs if response from has invalid format" do
 
     logger_mock = Minitest::Mock.new
     logger_mock.expect :error, nil, [ApiService::UnexpectedResponseError]
 
     RestClient.stub :post, @response_unexpected_format do
       Rails.stub :logger, logger_mock do
-        res, symbols = @service.get_symbol_by_isin(MISSING_ISIN)
+        res, symbols = @service.get_symbols_by_isin(MISSING_ISIN)
 
         assert res
 
@@ -284,14 +284,14 @@ class IexServiceTest < ActiveSupport::TestCase
     assert IexIsinMapping.where(isin: MISSING_ISIN).none?
   end
 
-  test "#get_symbol_by_isin logs error if RestClient raises exception" do
+  test "#get_symbols_by_isin logs error if RestClient raises exception" do
 
     logger_mock = Minitest::Mock.new
     logger_mock.expect :error, nil, ["Received error response from IEX: Not Found"]
 
     RestClient.stub :post, @rest_post_response_throwing_rest_client_error do
       Rails.stub :logger, logger_mock do
-        res, symbols = @service.get_symbol_by_isin(MISSING_ISIN)
+        res, symbols = @service.get_symbols_by_isin(MISSING_ISIN)
 
         assert res
 
@@ -303,22 +303,22 @@ class IexServiceTest < ActiveSupport::TestCase
     assert IexIsinMapping.where(isin: MISSING_ISIN).none?
   end
 
-  test "#get_symbol_by_isin returns error if isin has invalid format" do
-    res, error = @service.get_symbol_by_isin("DE12345678AI")
+  test "#get_symbols_by_isin returns error if isin has invalid format" do
+    res, error = @service.get_symbols_by_isin("DE12345678AI")
 
     assert_not res
     assert_equal :wrong_format, error
   end
 
-  test "#get_symbol_by_isin returns empty array for isin whose look-up failed" do
-    res, symbols = @service.get_symbol_by_isin(iex_isin_mappings(:mapping_3).isin)
+  test "#get_symbols_by_isin returns empty array for isin whose look-up failed" do
+    res, symbols = @service.get_symbols_by_isin(iex_isin_mappings(:mapping_3).isin)
 
     assert res
     assert symbols.empty?
   end
 
-  test "#get_symbol_by_isin returns empty array for isin without symbols in iex_symbols" do
-    res, symbols = @service.get_symbol_by_isin(iex_isin_mappings(:mapping_4).isin)
+  test "#get_symbols_by_isin returns empty array for isin without symbols in iex_symbols" do
+    res, symbols = @service.get_symbols_by_isin(iex_isin_mappings(:mapping_4).isin)
 
     assert res
     assert symbols.empty?
