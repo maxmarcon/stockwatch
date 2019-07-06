@@ -28,7 +28,7 @@ class IexService
   end
 
   # Fetches IexSymbol(s) by ISIN
-  def get_by_isin(isin)
+  def get_symbol_by_isin(isin)
     isin.upcase!
 
     if isin =~ ISIN_FORMAT
