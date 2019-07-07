@@ -7,11 +7,15 @@
 recent_call:
   api: iex
   call_digest: ABCD
+  called_at: <%= 1.hour.ago %>
 
 old_call:
   api: iex
   call_digest: WXYZ
-  updated_at: <%= 1.week.ago %>
-  created_at: <%= 1.year.ago %>
+  called_at: <%= 1.week.ago %>
+
+dangling_call:
+  api: iex
+  call_digest: UIOP
 
 # column: value

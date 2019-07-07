@@ -4,6 +4,7 @@ class CreateApiCallHistory < ActiveRecord::Migration[5.2]
 
       t.string :api, null: false
       t.string :call_digest, null: false
+      t.datetime :called_at
 
       t.timestamps
     end

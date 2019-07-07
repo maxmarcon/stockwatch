@@ -9,9 +9,7 @@ class ApiServiceTest < ActiveSupport::TestCase
   }
 
   REST_MALFORMED_RESPONSE = "{ not json..."
-  OLD_CALL = { path: "old_call", params: {"say" => "hello"}.freeze }
-  NEW_CALL = { path: "new_call", params: {"say" => "hello"}.freeze }
-  CALL_MAX_AGE = 1.day
+  CALL = { path: "CALL", params: {"say" => "hello"}.freeze }
 
   def setup
 
@@ -20,7 +18,7 @@ class ApiServiceTest < ActiveSupport::TestCase
                                       "base_url" => "https://fakeapi.com",
                                       :access_token => "FAKE_TOKEN"
                                     },
-                                    "call_max_age" => CALL_MAX_AGE
+                                    "call_max_age" => 1.day
     })
 
     @rest_correct_response = Minitest::Mock.new.expect :body, REST_GOOD_RESPONSE.to_json
@@ -32,49 +30,30 @@ class ApiServiceTest < ActiveSupport::TestCase
     }
   end
 
-  test "#execute executes and records new call" do
+  test "#execute executes call" do
     RestClient.stub :post, @rest_correct_response do
-      status, response = @api_service.execute :iex, :post, NEW_CALL[:path], NEW_CALL[:params]
-      assert status
-      assert_equal REST_GOOD_RESPONSE, response
+      assert_equal [true, REST_GOOD_RESPONSE],  @api_service.execute(:iex, :post, CALL[:path], CALL[:params])
     end
 
     @rest_correct_response.verify
-    assert ApiCall.called? :iex, ApiService.compute_hash(NEW_CALL[:path], NEW_CALL[:params]), CALL_MAX_AGE
   end
-
-  test "#execute executes and updates old call" do
-    old_call_hash = ApiService.compute_hash(OLD_CALL[:path], OLD_CALL[:params])
-    ApiCall.create!(api: :iex, call_digest: old_call_hash, updated_at: 1.week.ago, created_at: 1.week.ago)
-    assert_not ApiCall.called? :iex, old_call_hash, CALL_MAX_AGE
-
-    RestClient.stub :post, @rest_correct_response do
-      status, response = @api_service.execute :iex, :post, OLD_CALL[:path], OLD_CALL[:params]
-      assert status
-      assert_equal REST_GOOD_RESPONSE, response
-    end
-
-    @rest_correct_response.verify
-    assert ApiCall.called? :iex, old_call_hash, CALL_MAX_AGE
-  end
-
 
   test "#execute does not execute recent call" do
-    recent_call_hash = ApiService.compute_hash(OLD_CALL[:path], OLD_CALL[:params])
-    api_call = ApiCall.create!(api: :iex, call_digest: recent_call_hash, updated_at: 5.hours.ago, created_at: 5.hours.ago)
-    assert ApiCall.called? :iex, recent_call_hash, CALL_MAX_AGE
-
-    RestClient.stub :post, @rest_should_never_be_called do
-      assert_equal [false, :called_recently], @api_service.execute(:iex, :post, OLD_CALL[:path], OLD_CALL[:params])
+    RestClient.stub :post, @rest_correct_response do
+      assert_equal [true, REST_GOOD_RESPONSE],  @api_service.execute(:iex, :post, CALL[:path], CALL[:params])
     end
 
-    assert ApiCall.called? :iex, recent_call_hash, CALL_MAX_AGE
+    RestClient.stub :post, @rest_should_never_be_called do
+      assert_equal [false, :called_recently], @api_service.execute(:iex, :post, CALL[:path], CALL[:params])
+    end
+
+    @rest_correct_response.verify
   end
 
   test "#execute raises if response is not json" do
     RestClient.stub :post, @rest_malformed_response do
       assert_raises(JSON::ParserError) do
-        @api_service.execute :iex, :post, NEW_CALL[:path], NEW_CALL[:params]
+        @api_service.execute :iex, :post, CALL[:path], CALL[:params]
       end
     end
   end
@@ -82,14 +61,14 @@ class ApiServiceTest < ActiveSupport::TestCase
   test "#execute raises if response body has unexpected type" do
     RestClient.stub :post, @rest_unexpected_response do
       assert_raises(ApiService::UnexpectedResponseError) do
-        @api_service.execute :iex, :post, NEW_CALL[:path], NEW_CALL[:params]
+        @api_service.execute :iex, :post, CALL[:path], CALL[:params]
       end
     end
   end
 
   test "#xecute raises if passed unsupported api method" do
     e = assert_raises(RuntimeError) do
-      @api_service.execute :iex, :made_up_method, NEW_CALL[:path], NEW_CALL[:params]
+      @api_service.execute :iex, :made_up_method, CALL[:path], CALL[:params]
     end
 
     assert_equal "Supported methods are get or post, was passed made_up_method", e.message

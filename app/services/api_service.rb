@@ -55,11 +55,8 @@ class ApiService
   def execute(api, api_method, path, params = {}, expected = Array)
     call_hash = self.class.compute_hash(path, params)
 
-    if ApiCall.called?(api, call_hash, max_age)
-      Rails.logger.info("skipping API call to #{[api, api_method, path]} because executed in the last #{max_age.inspect}")
+    ApiCall.atomic_api_call(api, call_hash, max_age) do
 
-      [false, :called_recently]
-    else
       if params.is_a?(Hash) && access_token(api)
         params = params.merge({token: access_token(api)})
       end
@@ -84,9 +81,7 @@ class ApiService
 
       raise UnexpectedResponseError.new(response_body, expected) unless response_body.is_a?(expected)
 
-      ApiCall.record_call(api, call_hash)
-
-      [true, response_body]
+      response_body
     end
   end
 end

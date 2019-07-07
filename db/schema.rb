@@ -18,6 +18,7 @@ ActiveRecord::Schema.define(version: 2019_07_04_124745) do
   create_table "api_calls", force: :cascade do |t|
     t.string "api", null: false
     t.string "call_digest", null: false
+    t.datetime "called_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["api", "call_digest"], name: "index_api_calls_on_api_and_call_digest", unique: true
