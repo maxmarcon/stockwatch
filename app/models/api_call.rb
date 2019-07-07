@@ -14,14 +14,10 @@ class ApiCall < ApplicationRecord
 
     api_call.with_lock(true) do
       if [api_call.called_at, max_age].any?(&:nil?) || api_call.called_at < max_age.ago
-        result = yield
-
-        api_call.called_at = Time.now
-        api_call.save!
-        [true, result]
+        api_call.update!(called_at: Time.now)
+        [true, yield]
       else
         Rails.logger.info("skipping API call to #{[api, call_digest]} because executed in the last #{max_age.inspect}")
-
         [false, :called_recently]
       end
     end

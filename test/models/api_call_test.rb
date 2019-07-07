@@ -79,7 +79,7 @@ class ApiCallTest < ActiveSupport::TestCase
     assert_nil call.called_at
   end
 
-  test "#atomic_api_call with old call does not update call when block reaises" do
+  test "#atomic_api_call with old call does not update call when block raises" do
     call = api_calls(:old_call)
     called_at = call.called_at
 
@@ -89,6 +89,6 @@ class ApiCallTest < ActiveSupport::TestCase
 
     call.reload
 
-    assert_equal call.called_at, called_at
+    assert_equal called_at, call.called_at
   end
 end
