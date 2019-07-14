@@ -323,4 +323,33 @@ class IexServiceTest < ActiveSupport::TestCase
     assert res
     assert symbols.empty?
   end
+
+  test "#get_chart_data returns error if neither iex_id or isin is specified" do
+    res, message = @service.get_chart_data('1m')
+
+    assert_equal :error, res
+    assert_equal 'You need to specify either a symbol or a iex_id', message
+  end
+
+  test "#get_chart_data returns error if both symbol and iex_id are specified" do
+    res, message = @service.get_chart_data('1m', iex_id: 'DE0009848119', symbol: 'AAX')
+
+    assert_equal :error, res
+    assert_equal "You can only specify either a symbol or a iex_id but not both", message
+  end
+
+  test "#get_chart_data returns error if period is invalid" do
+    res, message = @service.get_chart_data('10m', symbol: 'AAX')
+
+    assert_equal :error, res
+    assert_equal "Invalid time period 10m, must be one of: #{IexService::TIME_PERIODS}", message
+  end
+
+  test "#get_chart_data returns error if iex_id can't be found" do
+    iex_id = 'IEX_485A304E42592XXX'
+    res, message = @service.get_chart_data('1m', iex_id: iex_id)
+
+    assert_equal :error, res
+    assert_equal "ID #{iex_id} was not found", message
+  end
 end

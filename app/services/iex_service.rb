@@ -1,5 +1,6 @@
 class IexService
   SYMBOL_ATTRS = %w(symbol exchange name date type iex_id region currency)
+  TIME_PERIODS = %w(1y 2y 5y 1m 3m 6m)
   ISIN_FORMAT = /^[A-Z]{2}\w{9}\d$/
 
   def initialize(config = {})
@@ -43,22 +44,39 @@ class IexService
   end
 
   def get_chart_data(period, iex_id: nil, symbol: nil)
-    raise "You need to specify either a symbol or a iex_id" if [iex_id, symbol].all?(&:nil?)
-    raise "You can only specify either a symbol or a iex_id but not both" if [iex_id, symbol].all?
+    return [:error, "You need to specify either a symbol or a iex_id"] if [iex_id, symbol].all?(&:nil?)
+    return [:error, "You can only specify either a symbol or a iex_id but not both"] if [iex_id, symbol].all?
+    return [:error, "Invalid time period #{period}, must be one of: #{TIME_PERIODS}"] unless period.in?(TIME_PERIODS)
 
     if iex_id
-      symbol = IexSymbol.find_by!(iex_id: iex_id)
+      symbol = IexSymbol.find_by(iex_id: iex_id)
+
+      return [:error, "ID #{iex_id} was not found"] unless symbol
     end
 
     if symbol.is_a?(IexSymbol)
       symbol = symbol.symbol
     end
 
-    symbol
+    IexChartEntry.where(symbol: symbol).where("date >= ?", parse_period(period).ago.to_date).to_a
   end
 
-
   private
+
+  def parse_period(period)
+
+    m = period.match(/(\d+)([my])/)
+    if m
+      val = m[1].to_i
+      time_period = case m[2]
+      when 'm'
+        :month
+      when 'y'
+        :year
+      end
+      val.send time_period
+    end
+  end
 
   def look_up_isin(isin)
     begin
@@ -81,7 +99,7 @@ class IexService
 
     rescue RestClient::ExceptionWithResponse => e
       Rails.logger.error("Received error response from IEX: #{e}")
-    rescue ApiService::UnexpectedResponseError, JSON::ParserError => e
+    rescue ApiService::UnexpectedResponseError, ActiveRecord::RecordNotUnique, JSON::ParserError => e
       Rails.logger.error(e)
     end
   end
@@ -99,12 +117,16 @@ class IexService
   end
 
   def store_symbol(record)
-    new_symbol = IexSymbol.create(record.to_a.map{ |k,v| [k.underscore, v] }.to_h.select{ |k,_| k.in? SYMBOL_ATTRS })
-
-    if new_symbol.persisted?
-      true
-    else
-      Rails.logger.debug("Could not store symbol from record #{record}, errors: #{new_symbol.errors.full_messages.join(', ')}")
+    begin
+      new_symbol = IexSymbol.create(record.to_a.map{ |k,v| [k.underscore, v] }.to_h.select{ |k,_| k.in? SYMBOL_ATTRS })
+      if new_symbol.persisted?
+        true
+      else
+        Rails.logger.debug("Could not store symbol from record #{record}, errors: #{new_symbol.errors.full_messages.join(', ')}")
+        false
+      end
+    rescue ActiveRecord::RecordNotUnique => e
+      Rails.logger.error(e)
       false
     end
   end

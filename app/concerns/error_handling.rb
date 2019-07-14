@@ -11,7 +11,8 @@ module ErrorHandling
     rescue_from ActionController::BadRequest, with: :handle_bad_request
   end
 
-  def handle_internal_error
+  def handle_internal_error(e = nil)
+    Rails.logger.error(e)
     render_error(500, 'An internal error has occurred')
   end
 

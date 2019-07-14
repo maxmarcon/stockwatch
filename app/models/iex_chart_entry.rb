@@ -1,0 +1,2 @@
+class IexChartEntry < ApplicationRecord
+end
