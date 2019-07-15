@@ -10,7 +10,11 @@ module V1
       status, result = @iex_service.get_symbols_by_isin(params['isin'])
 
       if status
-        render json: result.map{ |record| record.serializable_hash(except: [:id, :created_at, :updated_at]) }
+        if result.any?
+          render json: result.map{ |record| record.serializable_hash(except: [:id, :created_at, :updated_at]) }
+        else
+          raise ActiveRecord::RecordNotFound, "not_found"
+        end
       else
         raise ActionController::BadRequest, result
       end
