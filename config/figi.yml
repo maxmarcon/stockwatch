@@ -4,4 +4,3 @@ development: &default
 
 test:
   <<: *default
-  base_url: https://fake.api.com/

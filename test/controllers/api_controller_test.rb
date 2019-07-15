@@ -2,11 +2,18 @@ require 'test_helper'
 
 class ApiControllerTest < ActionDispatch::IntegrationTest
 
+  def setup
+    @rest_should_never_be_called = proc {
+      raise "should not be called"
+    }
+  end
+
   test "GET /isin retrieves mapping to symbol" do
     isin = 'DE0009848119'
 
-    get "/v1/isin/#{isin}", headers: {"Accept" => 'application/json' }
-
+    RestClient.stub :get, @rest_should_never_be_called do
+      get "/v1/isin/#{isin}", headers: {"Accept" => 'application/json' }
+    end
     assert_response :success
 
     assert_equal 2, @response.parsed_body.count
@@ -22,8 +29,9 @@ class ApiControllerTest < ActionDispatch::IntegrationTest
   test "GET /isin returns 404 Not Found with unknown ISIN" do
     isin = 'LU0767751091'
 
-    get "/v1/isin/#{isin}", headers: {"Accept" => 'application/json' }
-
+    RestClient.stub :get, @rest_should_never_be_called do
+      get "/v1/isin/#{isin}", headers: {"Accept" => 'application/json' }
+    end
     assert_response :not_found
 
     assert_equal 404, @response.parsed_body["status"]
@@ -33,7 +41,9 @@ class ApiControllerTest < ActionDispatch::IntegrationTest
   test "GET /isin returns 400 Bad Request with invalid ISIN" do
     isin = 'DE0009848119XXXX'
 
-    get "/v1/isin/#{isin}", headers: {"Accept" => 'application/json' }
+    RestClient.stub :get, @rest_should_never_be_called do
+      get "/v1/isin/#{isin}", headers: {"Accept" => 'application/json' }
+    end
 
     assert_response :bad_request
 
@@ -44,7 +54,9 @@ class ApiControllerTest < ActionDispatch::IntegrationTest
   test "GET /chart/:period returns the chart data by symbol" do
     symbol = '1SSEMYM1-MM'
 
-    get "/v1/chart/1m", params: {symbol: symbol}, headers: {"Accept" => 'application/json' }
+    RestClient.stub :get, @rest_should_never_be_called do
+      get "/v1/chart/1m", params: {symbol: symbol}, headers: {"Accept" => 'application/json' }
+    end
 
     assert_response :ok
 
@@ -58,7 +70,9 @@ class ApiControllerTest < ActionDispatch::IntegrationTest
   test "GET /chart/:period returns the chart data by iex_id" do
     iex_id = 'IEX_485A304E42592D52'
 
-    get "/v1/chart/1m", params: {iex_id: iex_id}, headers: {"Accept" => 'application/json' }
+    RestClient.stub :get, @rest_should_never_be_called do
+      get "/v1/chart/1m", params: {iex_id: iex_id}, headers: {"Accept" => 'application/json' }
+    end
 
     assert_response :ok
 
@@ -72,17 +86,21 @@ class ApiControllerTest < ActionDispatch::IntegrationTest
   test "GET /chart/:period returns 400 Bad Request with invalid period" do
     symbol = '1SSEMYM1-MM'
 
-    get "/v1/chart/30m", params: {symbol: symbol}, headers: {"Accept" => 'application/json' }
+    RestClient.stub :get, @rest_should_never_be_called do
+      get "/v1/chart/2m", params: {symbol: symbol}, headers: {"Accept" => 'application/json' }
+    end
 
     assert_response :bad_request
 
     assert_equal 400, @response.parsed_body["status"]
-    assert_match "Invalid time period 30m", @response.parsed_body["message"]
+    assert_match "Invalid time period 2m", @response.parsed_body["message"]
   end
 
   test "GET /chart/:period returns 400 Bad Request if symbol is missing" do
 
-    get "/v1/chart/1m", headers: {"Accept" => 'application/json' }
+    RestClient.stub :get, @rest_should_never_be_called do
+      get "/v1/chart/1m", headers: {"Accept" => 'application/json' }
+    end
 
     assert_response :bad_request
 
@@ -93,11 +111,30 @@ class ApiControllerTest < ActionDispatch::IntegrationTest
   test "GET /chart/:period returns 400 Bad Request with unknown iex_id" do
     iex_id = 'IEX_485A304E42592D53'
 
-    get "/v1/chart/1m", params: {iex_id: iex_id}, headers: {"Accept" => 'application/json'}
+    RestClient.stub :get, @rest_should_never_be_called do
+      get "/v1/chart/1m", params: {iex_id: iex_id}, headers: {"Accept" => 'application/json'}
+    end
 
     assert_response :bad_request
 
     assert_equal 400, @response.parsed_body["status"]
     assert_equal "ID #{iex_id} was not found", @response.parsed_body["message"]
+  end
+
+  test "GET /chart/:period returns 404 Not Found if no chart data is available" do
+    symbol = 'XXXX'
+
+    rest_empty_response = Minitest::Mock.new
+    rest_empty_response.expect :body, ""
+
+    RestClient.stub :get, rest_empty_response do
+      get "/v1/chart/1m", params: {symbol: symbol}, headers: {"Accept" => 'application/json' }
+    end
+
+    assert_response :not_found
+
+    rest_empty_response.verify
+    assert_equal 404, @response.parsed_body["status"]
+    assert_equal "not_found", @response.parsed_body["message"]
   end
 end
