@@ -88,6 +88,18 @@ ISIN_LOOKUP_CORRECT_RESPONSE = [
 
 MISSING_ISIN = 'DE0009848120'
 
+CHART_CORRECT_RESPONSE = 1.upto(((1.month/1.day)*IexService::DAYS_THRESHOLD)).map do |i|
+  {
+    symbol: '1SSEMYMA2-MM',
+    date: Date.current - i,
+    close: 1000 - i,
+    volume: 0,
+    change: 0,
+    change_percent: 0,
+    change_over_time: 0
+  }
+end
+
 class IexServiceTest < ActiveSupport::TestCase
 
   def setup
@@ -107,15 +119,11 @@ class IexServiceTest < ActiveSupport::TestCase
     @response_invalid_json = MiniTest::Mock.new.expect :body, '{invalid json: }'
     @response_unexpected_format = Minitest::Mock.new.expect :body, RESPONSE_UNEXPECTED_FORMAT.to_json
 
-    @rest_response_throwing_rest_client_error = ->(_,_){
+    @rest_response_throwing_rest_client_error = proc {
       raise RestClient::NotFound
     }
 
-    @rest_post_response_throwing_rest_client_error = ->(_,_,_){
-      raise RestClient::NotFound
-    }
-
-    @rest_should_never_be_called = ->(_,_,_) {
+    @rest_should_never_be_called = proc {
       raise "should not be called"
     }
 
@@ -124,6 +132,9 @@ class IexServiceTest < ActiveSupport::TestCase
 
     @isin_lookup_empty_response = Minitest::Mock.new
     @isin_lookup_empty_response.expect :body, [].to_json
+
+    @chart_correct_response = Minitest::Mock.new
+    @chart_correct_response.expect :body, CHART_CORRECT_RESPONSE.to_json
   end
 
   test '#init_symbols load symbols from the api' do
@@ -264,7 +275,7 @@ class IexServiceTest < ActiveSupport::TestCase
     assert IexIsinMapping.where(isin: MISSING_ISIN).none?
   end
 
-  test "#get_symbols_by_isin logs if response from has invalid format" do
+  test "#get_symbols_by_isin logs if response from API has invalid format" do
 
     logger_mock = Minitest::Mock.new
     logger_mock.expect :error, nil, [ApiService::UnexpectedResponseError]
@@ -289,7 +300,7 @@ class IexServiceTest < ActiveSupport::TestCase
     logger_mock = Minitest::Mock.new
     logger_mock.expect :error, nil, ["Received error response from IEX: Not Found"]
 
-    RestClient.stub :post, @rest_post_response_throwing_rest_client_error do
+    RestClient.stub :post, @rest_response_throwing_rest_client_error do
       Rails.stub :logger, logger_mock do
         res, symbols = @service.get_symbols_by_isin(MISSING_ISIN)
 
@@ -327,21 +338,21 @@ class IexServiceTest < ActiveSupport::TestCase
   test "#get_chart_data returns error if neither iex_id or isin is specified" do
     res, message = @service.get_chart_data('1m')
 
-    assert_equal :error, res
+    assert_not res
     assert_equal 'You need to specify either a symbol or a iex_id', message
   end
 
   test "#get_chart_data returns error if both symbol and iex_id are specified" do
     res, message = @service.get_chart_data('1m', iex_id: 'DE0009848119', symbol: 'AAX')
 
-    assert_equal :error, res
+    assert_not res
     assert_equal "You can only specify either a symbol or a iex_id but not both", message
   end
 
   test "#get_chart_data returns error if period is invalid" do
     res, message = @service.get_chart_data('10m', symbol: 'AAX')
 
-    assert_equal :error, res
+    assert_not res
     assert_equal "Invalid time period 10m, must be one of: #{IexService::TIME_PERIODS}", message
   end
 
@@ -349,7 +360,109 @@ class IexServiceTest < ActiveSupport::TestCase
     iex_id = 'IEX_485A304E42592XXX'
     res, message = @service.get_chart_data('1m', iex_id: iex_id)
 
-    assert_equal :error, res
+    assert_not res
     assert_equal "ID #{iex_id} was not found", message
+  end
+
+  test "#get_chart_data does not call API if days in DB are above or equal to the threshold and last entry is recent enough" do
+    symbol = "1SSEMYM1-MM"
+    expected = (1.month / 1.day)*IexService::DAYS_THRESHOLD
+
+    RestClient.stub :get, @rest_should_never_be_called do
+      res, result = @service.get_chart_data('1m', symbol: symbol)
+
+      assert res
+      assert_equal (1.month / 1.day)*IexService::DAYS_THRESHOLD, result.count
+      result.each do |chart_entry|
+        assert_equal symbol, chart_entry.symbol
+        assert chart_entry.serializable_hash.values.all?
+      end
+    end
+  end
+
+
+  test "#get_chart_data calls API if days in DB are below the threshold" do
+    symbol = "1SSEMYMA2-MM"
+    expected = (1.month / 1.day)*IexService::DAYS_THRESHOLD
+
+    RestClient.stub :get, @chart_correct_response do
+      res, result = @service.get_chart_data('1m', symbol: symbol)
+
+      assert res
+      assert_equal expected, result.count
+      result.each do |chart_entry|
+        assert_equal symbol, chart_entry.symbol
+        assert chart_entry.serializable_hash.values.all?
+      end
+    end
+
+    @chart_correct_response.verify
+    assert_equal expected, IexChartEntry.where(symbol: symbol).count
+  end
+
+  test "#get_chart_data calls API if last entry is not recent enough" do
+    symbol = "1SSEMYMA3-MM"
+    expected = (1.month / 1.day)*IexService::DAYS_THRESHOLD + IexService::LAST_ENTRY_MAX_AGE_DAYS
+
+    RestClient.stub :get, @chart_correct_response do
+      res, result = @service.get_chart_data('1m', symbol: symbol)
+
+      assert res
+      assert_equal expected, result.count
+      result.each do |chart_entry|
+        assert_equal symbol, chart_entry.symbol
+        assert chart_entry.serializable_hash.values.all?
+      end
+    end
+
+    @chart_correct_response.verify
+    assert_equal expected, IexChartEntry.where(symbol: symbol).count
+  end
+
+  test "#get_chart_data logs if response from API is invalid json" do
+    symbol = "1SSEMYMA2-MM"
+
+    logger_mock = Minitest::Mock.new
+    logger_mock.expect :error, nil, [JSON::ParserError]
+
+    RestClient.stub :get, @response_invalid_json do
+      Rails.stub :logger, logger_mock do
+        @service.get_chart_data('1m', symbol: symbol)
+      end
+    end
+
+    logger_mock.verify
+    @response_invalid_json.verify
+  end
+
+  test "#get_chart_data logs if response from API has invalid format" do
+    symbol = "1SSEMYMA2-MM"
+
+    logger_mock = Minitest::Mock.new
+    logger_mock.expect :error, nil, [ApiService::UnexpectedResponseError]
+
+    RestClient.stub :get, @response_unexpected_format do
+      Rails.stub :logger, logger_mock do
+        @service.get_chart_data('1m', symbol: symbol)
+      end
+    end
+
+    logger_mock.verify
+    @response_unexpected_format.verify
+  end
+
+  test "#get_chart_data logs if REST client raises exception" do
+    symbol = "1SSEMYMA2-MM"
+
+    logger_mock = Minitest::Mock.new
+    logger_mock.expect :error, nil, ["Received error response from IEX: Not Found"]
+
+    RestClient.stub :get, @rest_response_throwing_rest_client_error do
+      Rails.stub :logger, logger_mock do
+        @service.get_chart_data('1m', symbol: symbol)
+      end
+    end
+
+    logger_mock.verify
   end
 end

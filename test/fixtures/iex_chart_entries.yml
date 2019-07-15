@@ -4,6 +4,43 @@
 # model remove the '{}' from the fixture names and add the columns immediately
 # below each fixture, per the syntax in the comments below
 #
+#
+#
+<% 1.upto((1.month/1.day)*IexService::DAYS_THRESHOLD) do |i| %>
+iex_chart_<%= i %>:
+  symbol: 1SSEMYM1-MM
+  date: <%= Date.current - IexService::LAST_ENTRY_MAX_AGE_DAYS + 1 - i %>
+  close: <%= 1000 - i %>
+  volume: 0
+  change: 0
+  change_percent: 0
+  change_over_time: 0
+<% end %>
+
+<% 1.upto(((1.month/1.day)*IexService::DAYS_THRESHOLD)-1) do |i| %>
+iex_chart_<%= i+1000 %>:
+  symbol: 1SSEMYMA2-MM
+  date: <%= Date.current - IexService::LAST_ENTRY_MAX_AGE_DAYS + 1 - i %>
+  close: <%= 1000 - i %>
+  volume: 0
+  change: 0
+  change_percent: 0
+  change_over_time: 0
+<% end %>
+
+
+<% 1.upto(((1.month/1.day)*IexService::DAYS_THRESHOLD)) do |i| %>
+iex_chart_<%= i+1000 %>:
+  symbol: 1SSEMYMA3-MM
+  date: <%= Date.current - IexService::LAST_ENTRY_MAX_AGE_DAYS - i %>
+  close: <%= 1000 - i %>
+  volume: 0
+  change: 0
+  change_percent: 0
+  change_over_time: 0
+<% end %>
+
+
 #one: {}
 # column: value
 #

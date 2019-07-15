@@ -40,19 +40,17 @@ class FigiService
   def update_isins(isins)
     Rails.logger.info("fetching ISINs #{isins}")
 
-    begin
-      status, response_body = @api_service.post(:figi,
-                                                "mapping",
-                                                isins.map{ |isin| {idType: 'ID_ISIN', idValue: isin}},
-                                                Array
-                                                )
+    status, response_body = @api_service.post(:figi,
+                                              "mapping",
+                                              isins.map{ |isin| {idType: 'ID_ISIN', idValue: isin}},
+                                              Array
+                                              )
 
-      process_response(response_body, isins) if status
-    rescue RestClient::ExceptionWithResponse => e
-      Rails.logger.error("Received error response from OpenFIGI: #{e}")
-    rescue ApiService::UnexpectedResponseError, JSON::ParserError => e
-      Rails.logger.error(e)
-    end
+    process_response(response_body, isins) if status
+  rescue RestClient::ExceptionWithResponse => e
+    Rails.logger.error("Received error response from OpenFIGI: #{e}")
+  rescue ApiService::UnexpectedResponseError, JSON::ParserError => e
+    Rails.logger.error(e)
   end
 
   def process_response(response, isins)
