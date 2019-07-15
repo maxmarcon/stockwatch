@@ -1,3 +1,7 @@
-development:
+development: &default
   base_url: https://api.openfigi.com/v2/
   mapping_max_age: <%= 1.month %>
+
+test:
+  <<: *default
+  base_url: https://fake.api.com/

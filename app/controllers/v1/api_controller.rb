@@ -6,27 +6,30 @@ module V1
       @iex_service = IexService.new
     end
 
-    def symbols
+    def isin
       status, result = @iex_service.get_symbols_by_isin(params['isin'])
 
       if status
-        render json: result
+        render json: result.map{ |record| record.serializable_hash(except: [:id, :created_at, :updated_at]) }
       else
         raise ActionController::BadRequest, result
       end
     end
 
-    def historical_data
-      raise ActionController::BadRequest, 'you can only specify one of symbol or iex_id' if params.values_at('symbol', 'iex_id').all?
-      raise ActionController::BadRequest, 'you have to specify one of symbol or iex_id' if params.values_at('symbol', 'iex_id').none?
+    def chart
+      period, symbol, iex_id = params.values_at('period', 'symbol', 'iex_id')
 
-      result = @iex_service.get_chart_data(
-        params["period"],
-        symbol: params["symbol"],
-        iex_id: params["iex_id"]
+      status, result = @iex_service.get_chart_data(
+        period,
+        symbol: symbol,
+        iex_id: iex_id
       )
 
-      render json: [result]
+      if status
+        render json: result.map{ |record| record.serializable_hash(except: [:created_at, :updated_at, :id, :symbol]) }
+      else
+        raise ActionController::BadRequest, result
+      end
     end
   end
 end

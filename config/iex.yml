@@ -1,4 +1,4 @@
-development:
+development: &default
   base_url: https://cloud.iexapis.com/v1/
   mapping_max_age: <%= 1.month %>
   symbol_lists:
@@ -9,3 +9,7 @@ development:
     - ref-data/region/NL/symbols
     - ref-data/otc/symbols
     - ref-data/symbols
+
+test:
+  <<: *default
+  base_url: https://fake.api.com/

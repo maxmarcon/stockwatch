@@ -1,8 +1,8 @@
 Rails.application.routes.draw do
 
   namespace 'v1' do
-    get 'symbols/:isin', to: "api#symbols"
-    get 'historical_data/:period', to: "api#historical_data"
+    get 'isin/:isin', to: "api#isin"
+    get 'chart/:period', to: "api#chart"
   end
 
   get 'app', to: 'webapp#home'

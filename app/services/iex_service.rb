@@ -76,7 +76,6 @@ class IexService
   private
 
   def fetch_chart_data(period, symbol)
-
     status, response_body = @api_service.get :iex, "stock/#{symbol}/chart/#{period}", {chartCloseOnly: true}
 
     if status
