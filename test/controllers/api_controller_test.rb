@@ -63,6 +63,7 @@ class ApiControllerTest < ActionDispatch::IntegrationTest
     json_response = @response.parsed_body
     assert json_response.has_key?("data")
     assert_equal 'MXN', json_response["currency"]
+    assert_equal symbol, json_response["symbol"]
     assert_equal (1.month/1.day)*IexService::DAYS_THRESHOLD, json_response["data"].count
     json_response["data"].each do |record|
       assert record.values_at("date", "close", "volume", "change", "change_percent", "change_over_time").all?
@@ -81,6 +82,7 @@ class ApiControllerTest < ActionDispatch::IntegrationTest
     json_response = @response.parsed_body
     assert json_response.has_key?("data")
     assert_equal 'MXN', json_response["currency"]
+    assert_equal IexSymbol.find_by(iex_id: iex_id).symbol, json_response["symbol"]
     assert_equal (1.month/1.day)*IexService::DAYS_THRESHOLD, json_response["data"].count
     json_response["data"].each do |record|
       assert record.values_at("date", "close", "volume", "change", "change_percent", "change_over_time").all?
