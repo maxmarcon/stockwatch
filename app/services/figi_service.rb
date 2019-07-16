@@ -86,10 +86,15 @@ class FigiService
       record.map{ |k,v| [k.underscore, v]}.to_h.select{ |k,_| k.in? PERMITTED_PARAMS }
     )
 
-    if figi.save
-      true
-    else
-      Rails.logger.error("Unable to save figi #{figi.figi}: #{figi.errors.full_messages.join(', ')}")
+    begin
+      if figi.save
+        true
+      else
+        Rails.logger.error("Unable to save figi #{figi.figi}: #{figi.errors.full_messages.join(', ')}")
+        false
+      end
+    rescue ActiveRecord::RecordNotUnique => e
+      Rails.logger.error(e)
       false
     end
   end

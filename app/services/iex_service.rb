@@ -129,7 +129,12 @@ class IexService
       created = if iex_ids.empty?
         IexIsinMapping.create(isin: isin, iex_id: nil)
       else
-        iex_ids.count{ |iex_id| IexIsinMapping.create(iex_id: iex_id, isin: isin).persisted? }
+        iex_ids.count do |iex_id|
+          IexIsinMapping.create(iex_id: iex_id, isin: isin).persisted?
+        rescue ActiveRecord::RecordNotUnique => e
+          Rails.logger.error(e)
+          false
+        end
       end
 
       Rails.logger.info("created #{created} new isin mappings")
