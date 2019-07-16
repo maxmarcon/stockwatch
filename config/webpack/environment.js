@@ -1,8 +1,8 @@
 const {
-	environment
+  environment
 } = require('@rails/webpacker')
 const {
-	VueLoaderPlugin
+  VueLoaderPlugin
 } = require('vue-loader')
 
 // This will make sure that webpack "sees" the relative URLs to the font files that appear
@@ -18,4 +18,9 @@ const vue = require('./loaders/vue')
 environment.plugins.prepend('VueLoaderPlugin', new VueLoaderPlugin())
 environment.plugins.prepend('CssUrlRelativePlugin', new CssUrlRelativePlugin())
 environment.loaders.prepend('vue', vue)
+environment.loaders.prepend('pug', {
+  test: /\.pug$/,
+  loader: 'pug-plain-loader'
+})
+
 module.exports = environment

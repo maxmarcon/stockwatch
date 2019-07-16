@@ -13,14 +13,23 @@
 //
 // const images = require.context('../images', true)
 // const imagePath = (name) => images(name, true)
+import "core-js/stable";
+import "regenerator-runtime/runtime";
+
 import '../styles/main.js'
 
 import App from '../app.vue'
 import Vue from 'vue'
 import BootstrapVue from 'bootstrap-vue'
+import axios from 'axios'
+import VueAxios from 'vue-axios'
+import messageBar from './messageBar.vue'
 
+Vue.use(VueAxios, axios)
 Vue.use(BootstrapVue)
 
+Vue.component('message-bar', messageBar)
+
 new Vue({
-	render: h => h(App),
+  render: h => h(App),
 }).$mount('#app')
