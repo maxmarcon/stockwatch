@@ -51,26 +51,30 @@ class IexService
     return [false, "You can only specify either a symbol or a iex_id but not both"] if [iex_id, symbol].all?
     return [false, "Invalid time period #{period}, must be one of: #{TIME_PERIODS}"] unless period.in?(TIME_PERIODS)
 
-    if iex_id
-      symbol = IexSymbol.find_by(iex_id: iex_id)
-
-      return [false, "ID #{iex_id} was not found"] unless symbol
+    iex_symbol = if iex_id
+      IexSymbol.find_by(iex_id: iex_id)
+    else
+      IexSymbol.find_by(symbol: symbol)
     end
 
-    if symbol.is_a?(IexSymbol)
-      symbol = symbol.symbol
+    if iex_symbol
+      time_period = parse_period(period)
+
+      query = IexChartEntry.where(symbol: iex_symbol.symbol).where("date >= ?", time_period.ago.to_date)
+
+      if query.count < (time_period/1.day)*DAYS_THRESHOLD ||
+          (query.any? && (Date.current - query.maximum(:date)) > LAST_ENTRY_MAX_AGE_DAYS)
+        fetch_chart_data(period, iex_symbol.symbol)
+      end
+
+      [true, {data: query.order(:date).to_a, currency: iex_symbol.currency}]
+    else
+      if iex_id
+        [false, "Unknown IEX_ID #{iex_id}"]
+      else
+        [false, "Unknown symbol #{symbol}"]
+      end
     end
-
-    time_period = parse_period(period)
-
-    query = IexChartEntry.where(symbol: symbol).where("date >= ?", time_period.ago.to_date)
-
-    if query.count < (time_period/1.day)*DAYS_THRESHOLD ||
-        (query.any? && (Date.current - query.maximum(:date)) > LAST_ENTRY_MAX_AGE_DAYS)
-      fetch_chart_data(period, symbol)
-    end
-
-    [true, query.order(:date).to_a]
   end
 
   private

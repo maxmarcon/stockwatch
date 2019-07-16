@@ -30,8 +30,12 @@ module V1
       )
 
       if status
-        if result.any?
-          render json: result.map{ |record| record.serializable_hash(except: [:created_at, :updated_at, :id, :symbol]) }
+        entries = result[:data]
+        if entries.any?
+          render json: {
+            data: entries.map{ |record| record.serializable_hash(except: [:created_at, :updated_at, :id, :symbol]) },
+            currency: result[:currency]
+          }
         else
           raise ActiveRecord::RecordNotFound, "not_found"
         end

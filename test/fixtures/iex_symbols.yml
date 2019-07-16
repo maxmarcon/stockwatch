@@ -23,3 +23,23 @@ iex_2:
   iex_id: "IEX_4A4B355446472D52"
   region: "MX"
   currency: "MXN"
+
+iex_3:
+  symbol: "1SSEMYMA3-MM"
+  exchange: "MEX"
+  name: "Moltifondo de Prevision 3 Banorte Generali Siefore..."
+  date: "2019-06-18"
+  type: "oef"
+  iex_id: "IEX_4A4B355446472F99"
+  region: "MX"
+  currency: "MXN"
+
+iex_4:
+  symbol: "1SSEMYMA4-MM"
+  exchange: "MEX"
+  name: "Moltifondo de Prevision 3 Banorte Generali Siefore..."
+  date: "2019-06-18"
+  type: "oef"
+  iex_id: "IEX_4A4B355446472G99"
+  region: "MX"
+  currency: "MXN"

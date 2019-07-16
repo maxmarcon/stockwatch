@@ -60,9 +60,11 @@ class ApiControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :ok
 
-    entries = @response.parsed_body
-    assert_equal (1.month/1.day)*IexService::DAYS_THRESHOLD, entries.count
-    entries.each do |record|
+    json_response = @response.parsed_body
+    assert json_response.has_key?("data")
+    assert_equal 'MXN', json_response["currency"]
+    assert_equal (1.month/1.day)*IexService::DAYS_THRESHOLD, json_response["data"].count
+    json_response["data"].each do |record|
       assert record.values_at("date", "close", "volume", "change", "change_percent", "change_over_time").all?
     end
   end
@@ -76,9 +78,11 @@ class ApiControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :ok
 
-    entries = @response.parsed_body
-    assert_equal (1.month/1.day)*IexService::DAYS_THRESHOLD, entries.count
-    entries.each do |record|
+    json_response = @response.parsed_body
+    assert json_response.has_key?("data")
+    assert_equal 'MXN', json_response["currency"]
+    assert_equal (1.month/1.day)*IexService::DAYS_THRESHOLD, json_response["data"].count
+    json_response["data"].each do |record|
       assert record.values_at("date", "close", "volume", "change", "change_percent", "change_over_time").all?
     end
   end
@@ -118,11 +122,24 @@ class ApiControllerTest < ActionDispatch::IntegrationTest
     assert_response :bad_request
 
     assert_equal 400, @response.parsed_body["status"]
-    assert_equal "ID #{iex_id} was not found", @response.parsed_body["message"]
+    assert_equal "Unknown IEX_ID #{iex_id}", @response.parsed_body["message"]
+  end
+
+  test "GET /chart/:period returns 400 Bad Request with unknown symbol" do
+    symbol = '1SSEMYM1-XX'
+
+    RestClient.stub :get, @rest_should_never_be_called do
+      get "/v1/chart/1m", params: {symbol: symbol}, headers: {"Accept" => 'application/json'}
+    end
+
+    assert_response :bad_request
+
+    assert_equal 400, @response.parsed_body["status"]
+    assert_equal "Unknown symbol #{symbol}", @response.parsed_body["message"]
   end
 
   test "GET /chart/:period returns 404 Not Found if no chart data is available" do
-    symbol = 'XXXX'
+    symbol = '1SSEMYMA4-MM'
 
     rest_empty_response = Minitest::Mock.new
     rest_empty_response.expect :body, ""

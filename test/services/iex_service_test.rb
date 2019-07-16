@@ -315,53 +315,69 @@ class IexServiceTest < ActiveSupport::TestCase
   end
 
   test "#get_symbols_by_isin returns error if isin has invalid format" do
-    res, error = @service.get_symbols_by_isin("DE12345678AI")
-
-    assert_not res
-    assert_equal :wrong_format, error
+    RestClient.stub :post, @rest_should_never_be_called do
+      res, error = @service.get_symbols_by_isin("DE12345678AI")
+      assert_not res
+      assert_equal :wrong_format, error
+    end
   end
 
   test "#get_symbols_by_isin returns empty array for isin whose look-up failed" do
-    res, symbols = @service.get_symbols_by_isin(iex_isin_mappings(:mapping_3).isin)
-
-    assert res
-    assert symbols.empty?
+    RestClient.stub :post, @rest_should_never_be_called do
+      res, symbols = @service.get_symbols_by_isin(iex_isin_mappings(:mapping_3).isin)
+      assert res
+      assert symbols.empty?
+    end
   end
 
   test "#get_symbols_by_isin returns empty array for isin without symbols in iex_symbols" do
-    res, symbols = @service.get_symbols_by_isin(iex_isin_mappings(:mapping_4).isin)
-
-    assert res
-    assert symbols.empty?
+    RestClient.stub :post, @rest_should_never_be_called do
+      res, symbols = @service.get_symbols_by_isin(iex_isin_mappings(:mapping_4).isin)
+      assert res
+      assert symbols.empty?
+    end
   end
 
   test "#get_chart_data returns error if neither iex_id or isin is specified" do
-    res, message = @service.get_chart_data('1m')
-
-    assert_not res
-    assert_equal 'You need to specify either a symbol or a iex_id', message
+    RestClient.stub :get, @rest_should_never_be_called do
+      res, message = @service.get_chart_data('1m')
+      assert_not res
+      assert_equal 'You need to specify either a symbol or a iex_id', message
+    end
   end
 
   test "#get_chart_data returns error if both symbol and iex_id are specified" do
-    res, message = @service.get_chart_data('1m', iex_id: 'DE0009848119', symbol: 'AAX')
-
-    assert_not res
-    assert_equal "You can only specify either a symbol or a iex_id but not both", message
+    RestClient.stub :get, @rest_should_never_be_called do
+      res, message = @service.get_chart_data('1m', iex_id: 'DE0009848119', symbol: 'AAX')
+      assert_not res
+      assert_equal "You can only specify either a symbol or a iex_id but not both", message
+    end
   end
 
   test "#get_chart_data returns error if period is invalid" do
-    res, message = @service.get_chart_data('10m', symbol: 'AAX')
-
-    assert_not res
-    assert_equal "Invalid time period 10m, must be one of: #{IexService::TIME_PERIODS}", message
+    RestClient.stub :get, @rest_should_never_be_called do
+      res, message = @service.get_chart_data('10m', symbol: 'AAX')
+      assert_not res
+      assert_equal "Invalid time period 10m, must be one of: #{IexService::TIME_PERIODS}", message
+    end
   end
 
   test "#get_chart_data returns error if iex_id can't be found" do
     iex_id = 'IEX_485A304E42592XXX'
-    res, message = @service.get_chart_data('1m', iex_id: iex_id)
+    RestClient.stub :get, @rest_should_never_be_called do
+      res, message = @service.get_chart_data('1m', iex_id: iex_id)
+      assert_not res
+      assert_equal "Unknown IEX_ID #{iex_id}", message
+    end
+  end
 
-    assert_not res
-    assert_equal "ID #{iex_id} was not found", message
+  test "#get_chart_data returns error if symbol can't be found" do
+    symbol = '1SSEMYM1-XX'
+    RestClient.stub :get, @rest_should_never_be_called do
+      res, message = @service.get_chart_data('1m', symbol: symbol)
+      assert_not res
+      assert_equal "Unknown symbol #{symbol}", message
+    end
   end
 
   test "#get_chart_data does not call API if days in DB are above or equal to the threshold and last entry is recent enough" do
@@ -372,14 +388,34 @@ class IexServiceTest < ActiveSupport::TestCase
       res, result = @service.get_chart_data('1m', symbol: symbol)
 
       assert res
-      assert_equal (1.month / 1.day)*IexService::DAYS_THRESHOLD, result.count
-      result.each do |chart_entry|
+      assert result.has_key?(:data)
+      assert_equal 'MXN', result[:currency]
+      assert_equal (1.month / 1.day)*IexService::DAYS_THRESHOLD, result[:data].count
+      result[:data].each do |chart_entry|
         assert_equal symbol, chart_entry.symbol
         assert chart_entry.serializable_hash.values.all?
       end
     end
   end
 
+  test "#get_chart_data can retrieve data by iex_id" do
+    iex_id = "IEX_485A304E42592D52"
+    symbol = IexSymbol.find_by(iex_id: iex_id).symbol
+    expected = (1.month / 1.day)*IexService::DAYS_THRESHOLD
+
+    RestClient.stub :get, @rest_should_never_be_called do
+      res, result = @service.get_chart_data('1m', iex_id: iex_id)
+
+      assert res
+      assert result.has_key?(:data)
+      assert_equal 'MXN', result[:currency]
+      assert_equal (1.month / 1.day)*IexService::DAYS_THRESHOLD, result[:data].count
+      result[:data].each do |chart_entry|
+        assert_equal symbol, chart_entry.symbol
+        assert chart_entry.serializable_hash.values.all?
+      end
+    end
+  end
 
   test "#get_chart_data calls API if days in DB are below the threshold" do
     symbol = "1SSEMYMA2-MM"
@@ -389,8 +425,10 @@ class IexServiceTest < ActiveSupport::TestCase
       res, result = @service.get_chart_data('1m', symbol: symbol)
 
       assert res
-      assert_equal expected, result.count
-      result.each do |chart_entry|
+      assert result.has_key?(:data)
+      assert_equal 'MXN', result[:currency]
+      assert_equal expected, result[:data].count
+      result[:data].each do |chart_entry|
         assert_equal symbol, chart_entry.symbol
         assert chart_entry.serializable_hash.values.all?
       end
@@ -408,8 +446,10 @@ class IexServiceTest < ActiveSupport::TestCase
       res, result = @service.get_chart_data('1m', symbol: symbol)
 
       assert res
-      assert_equal expected, result.count
-      result.each do |chart_entry|
+      assert result.has_key?(:data)
+      assert_equal 'MXN', result[:currency]
+      assert_equal expected, result[:data].count
+      result[:data].each do |chart_entry|
         assert_equal symbol, chart_entry.symbol
         assert chart_entry.serializable_hash.values.all?
       end
