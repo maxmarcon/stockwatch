@@ -505,4 +505,25 @@ class IexServiceTest < ActiveSupport::TestCase
 
     logger_mock.verify
   end
+
+  test "#search_symbols find symbols by iex_id" do
+
+    assert_equal [true, [iex_symbols(:iex_1)]], @service.search_symbols('IEX_485A304E42592D52')
+  end
+
+  test "#search_symbols find symbols by symbol" do
+    assert_equal [true, [iex_symbols(:iex_1)]], @service.search_symbols('1SSEMYM1-MM')
+  end
+
+  test "#search_symbols returns empty array if nothing is found" do
+    assert_equal [true, []], @service.search_symbols('XXXXXXX')
+  end
+
+  test "#search_symbols returns error if empty search term is passed" do
+    assert_equal [false, :search_term_missing], @service.search_symbols('')
+  end
+
+  test "#search_symbols returns error if nil search term is passed" do
+    assert_equal [false, :search_term_missing], @service.search_symbols(nil)
+  end
 end

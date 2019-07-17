@@ -3,6 +3,7 @@ Rails.application.routes.draw do
   namespace 'v1' do
     get 'isin/:isin', to: "api#isin"
     get 'chart/:period', to: "api#chart"
+    get 'search', to: "api#search"
   end
 
   get 'app', to: 'webapp#home'

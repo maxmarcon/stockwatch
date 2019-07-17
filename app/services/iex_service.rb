@@ -31,6 +31,14 @@ class IexService
     end
   end
 
+  def search_symbols(term)
+    if term.present?
+      [true, IexSymbol.where(symbol: term).or(IexSymbol.where(iex_id: term)).to_a]
+    else
+      [false, :search_term_missing]
+    end
+  end
+
   # Fetches IexSymbol(s) by ISIN
   def get_symbols_by_isin(isin)
     isin.upcase!

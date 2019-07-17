@@ -156,4 +156,44 @@ class ApiControllerTest < ActionDispatch::IntegrationTest
     assert_equal 404, @response.parsed_body["status"]
     assert_equal "not_found", @response.parsed_body["message"]
   end
+
+  test "GET /search returns symbols when symbol is pased as search term" do
+    symbol = '1SSEMYMA4-MM'
+
+    get "/v1/search", params: {q: symbol}, headers: {"Accept" => 'application/json' }
+
+    assert_response :ok
+    json_response = @response.parsed_body
+    assert 1, json_response.length
+    assert json_response[0].values_at("symbol", "exchange", "name", "date", "type", "iex_id", "region", "currency").all?
+    assert_equal symbol, json_response[0]["symbol"]
+  end
+
+  test "GET /search returns symbols when iex_id is pased as search term" do
+    iex_id = 'IEX_485A304E42592D52'
+
+    get "/v1/search", params: {q: iex_id}, headers: {"Accept" => 'application/json' }
+
+    assert_response :ok
+    json_response = @response.parsed_body
+    assert 1, json_response.length
+    assert json_response[0].values_at("symbol", "exchange", "name", "date", "type", "iex_id", "region", "currency").all?
+    assert_equal iex_id, json_response[0]["iex_id"]
+  end
+
+  test "GET /search returns 404 Not Found if no symbol is found" do
+    get "/v1/search", params: {q: "XXXXXX"}, headers: {"Accept" => 'application/json' }
+
+    assert_response :not_found
+    assert_equal 404, @response.parsed_body["status"]
+    assert_equal "not_found", @response.parsed_body["message"]
+  end
+
+  test "GET /search returns 400 Bad Request if search term is missing" do
+    get "/v1/search", headers: {"Accept" => 'application/json' }
+
+    assert_response :bad_request
+    assert_equal 400, @response.parsed_body["status"]
+    assert_equal "search_term_missing", @response.parsed_body["message"]
+  end
 end
