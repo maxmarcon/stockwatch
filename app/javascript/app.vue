@@ -16,7 +16,7 @@ b-card
           placeholder="Enter an ISIN or a ticker..."
         )
           template(slot="tag-right" slot-scope="props")
-            span(v-if="props.tag.symbol != props.tag.text") &nbsp; {{ "(" + props.tag.symbol + ")" }}
+            span(v-if="props.tag.symbol && props.tag.symbol != props.tag.text") &nbsp; {{ "(" + props.tag.symbol + ")" }}
       b-col.mt-1(md="auto")
         b-form-select(:options="periods" v-model="period" @change="updateChart")
       b-col.mt-1(md="auto")
@@ -88,19 +88,20 @@ export default {
         })
         let iex_symbol = response[0]
         tag.symbol = iex_symbol.symbol
-        addTag(tag)
       } catch (error) {
         if (error.response && error.response.status != 404) {
           throw error
         }
+        tag.classes = "ti-invalid"
       }
+      addTag(tag)
     },
     newTags(tags) {
       this.tags = tags
       this.updateChart()
     },
     async updateChart() {
-      let datasets = await Promise.all(this.tags.map(async ({
+      let datasets = await Promise.all(this.tags.filter(({symbol}) => symbol).map(async ({
         text,
         symbol
       }) => {
