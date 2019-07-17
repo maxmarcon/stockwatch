@@ -33,10 +33,11 @@ class IexService
 
   def search_symbols(term)
     if term.present?
-      query = IexSymbol.where(symbol: term).or(IexSymbol.where(iex_id: term))
+      query = IexSymbol.where('symbol ilike ?', "#{term}%").or(IexSymbol.where('iex_id ilike ?', "#{term}%"))
       status, by_isin = get_symbols_by_isin(term)
       by_isin = [] unless status
-      [true, query.to_a + by_isin]
+
+      [true, by_isin + query.order(:symbol).take(10).to_a]
     else
       [false, :search_term_missing]
     end
@@ -51,10 +52,15 @@ class IexService
       if oldest_isin_update.nil? || oldest_isin_update < mapping_max_age.ago
         look_up_isin(isin)
       end
-      [true, IexSymbol.joins(:iex_isin_mapping).where(iex_isin_mappings: {isin: isin}).to_a]
-    else
-      [false, :wrong_format]
     end
+
+    [
+      true,
+      IexSymbol.includes(:iex_isin_mapping)
+      .where("iex_isin_mappings.isin ilike ?", "#{isin}%")
+      .references(:iex_isin_mapping)
+      .select{ |iex_symbol| iex_symbol.isin = iex_symbol.iex_isin_mapping.isin}.to_a
+    ]
   end
 
   def get_chart_data(period, iex_id: nil, symbol: nil)

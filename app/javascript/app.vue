@@ -7,16 +7,26 @@ b-card
         vue-tags-input(
           v-model="tag"
           :tags="tags"
-          @tags-changed="newTags"
-          @before-adding-tag="beforeAddingTag"
+          @tags-changed="tagsChanged"
           :disabled="requestOngoing"
           :avoidAddingDuplicates="true"
+          :autocomplete-items="autocompleteItems"
           :max-tags="5"
           :maxlength="50"
+          :add-only-from-autocomplete="true"
           placeholder="Enter an ISIN or a ticker..."
         )
-          template(slot="tag-right" slot-scope="props")
-            span(v-if="props.tag.symbol && props.tag.symbol != props.tag.text") &nbsp; {{ "(" + props.tag.symbol + ")" }}
+          template(v-slot:tag-right="{tag}")
+            span(v-if="tag.isin") &nbsp; {{ "(" + tag.isin + ")" }}
+
+          template(
+            v-slot:autocomplete-item="{item, performAdd}"
+          )
+            div(@click="performAdd(item)")
+              span &nbsp; {{ item.text }}
+              span(v-if="item.isin") &nbsp; {{ '(' + item.isin + ')' }}
+              span.em.small &nbsp; {{ item.name }}
+
       b-col.mt-1(md="auto")
         b-form-select(:options="periods" v-model="period" @change="updateChart")
       b-col.mt-1(md="auto")
@@ -43,8 +53,6 @@ export default {
     return {
       tags: [],
       tag: '',
-      symbol: null,
-      symbols: ['AAAGX', 'SAP'],
       period: '1m',
       periods: [{
         value: '1m',
@@ -65,7 +73,9 @@ export default {
         value: '5y',
         text: '5 Years'
       }],
-      chart: null
+      autocompleteItems: [],
+      chart: null,
+      debounce: null
     }
   },
   mounted() {
@@ -73,30 +83,47 @@ export default {
       type: 'line'
     })
   },
+  watch: {
+    tag: function(newTag, _oldTag) {
+      this.fillAutocomplete(newTag)
+    }
+  },
   methods: {
-    async beforeAddingTag({
-      tag,
-      addTag
-    }) {
-      tag.text = tag.text.toUpperCase()
-      console.log("searching for... " + tag.text)
-      try {
-        let response = await this.restRequest('search', {
-          params: {
-            q: tag.text
-          }
-        })
-        let iex_symbol = response[0]
-        tag.symbol = iex_symbol.symbol
-      } catch (error) {
-        if (error.response && error.response.status != 404) {
-          throw error
-        }
-        tag.classes = "ti-invalid"
+    fillAutocomplete(inputText) {
+      inputText = inputText.trim()
+
+      if (inputText.length < 2) {
+        return
       }
-      addTag(tag)
+
+      clearTimeout(this.debounce)
+
+      this.debounce = setTimeout(async () => {
+        try {
+          let response = await this.restRequest('search', {
+            params: {
+              q: inputText
+            }
+          })
+          this.autocompleteItems = response.map(({
+            symbol,
+            name,
+            isin
+          }) => ({
+            symbol,
+            name,
+            isin,
+            text: symbol
+          }))
+        } catch (error) {
+          if (!error.response || error.response.status != 404) {
+            throw error
+          }
+          this.autocompleteItems = []
+        }
+      }, 200)
     },
-    newTags(tags) {
+    tagsChanged(tags) {
       this.tags = tags
       this.updateChart()
     },
@@ -105,28 +132,36 @@ export default {
         text,
         symbol
       }) => {
-        let response = await this.restRequest(`chart/${this.period}`, {
-          params: {
-            symbol: symbol
+
+        try {
+          let response = await this.restRequest(`chart/${this.period}`, {
+            params: {
+              symbol: symbol
+            }
+          })
+
+          let data = response.data.map(({
+            close,
+            date
+          }) => ({
+            x: dateFns.parse(date),
+            y: close
+          }))
+
+          return {
+            label: symbol,
+            fill: false,
+            data
           }
-        })
-
-        let data = response.data.map(({
-          close,
-          date
-        }) => ({
-          x: dateFns.parse(date),
-          y: close
-        }))
-
-        return {
-          label: symbol,
-          fill: false,
-          data
+        } catch (error) {
+          if (!error.response || error.response.status != 404) {
+            throw error
+          }
         }
+        return null
       }))
 
-      this.chart.data.datasets = datasets
+      this.chart.data.datasets = datasets.filter(d => d)
 
       this.chart.options.scales = {
         yAxes: [{

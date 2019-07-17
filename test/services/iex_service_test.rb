@@ -314,11 +314,11 @@ class IexServiceTest < ActiveSupport::TestCase
     assert IexIsinMapping.where(isin: MISSING_ISIN).none?
   end
 
-  test "#get_symbols_by_isin returns error if isin has invalid format" do
+  test "#get_symbols_by_isin does not call API if isin has invalid format" do
     RestClient.stub :post, @rest_should_never_be_called do
-      res, error = @service.get_symbols_by_isin("DE12345678AI")
-      assert_not res
-      assert_equal :wrong_format, error
+      res, symbols = @service.get_symbols_by_isin("DE1234")
+      assert res
+      assert symbols.empty?
     end
   end
 

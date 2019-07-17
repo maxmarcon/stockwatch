@@ -18,7 +18,7 @@ class ApiControllerTest < ActionDispatch::IntegrationTest
 
     assert_equal 2, @response.parsed_body.count
     @response.parsed_body.each do |record|
-      assert record.values_at("symbol", "exchange", "name", "date", "type", "iex_id", "region", "currency").all?
+      assert record.values_at("symbol", "exchange", "name", "date", "type", "iex_id", "region", "currency", "isin").all?
     end
 
     symbols = @response.parsed_body.map{ |record| record["symbol"] }
@@ -36,19 +36,6 @@ class ApiControllerTest < ActionDispatch::IntegrationTest
 
     assert_equal 404, @response.parsed_body["status"]
     assert_equal "not_found", @response.parsed_body["message"]
-  end
-
-  test "GET /isin returns 400 Bad Request with invalid ISIN" do
-    isin = 'DE0009848119XXXX'
-
-    RestClient.stub :get, @rest_should_never_be_called do
-      get "/v1/isin/#{isin}", headers: {"Accept" => 'application/json' }
-    end
-
-    assert_response :bad_request
-
-    assert_equal 400, @response.parsed_body["status"]
-    assert_equal "wrong_format", @response.parsed_body["message"]
   end
 
   test "GET /chart/:period returns the chart data by symbol" do
@@ -190,7 +177,7 @@ class ApiControllerTest < ActionDispatch::IntegrationTest
     json_response = @response.parsed_body
     assert 2, json_response.length
     json_response.each do |record|
-      assert record.values_at("symbol", "exchange", "name", "date", "type", "iex_id", "region", "currency").all?
+      assert record.values_at("symbol", "exchange", "name", "date", "type", "iex_id", "region", "currency", "isin").all?
     end
     assert_equal ['IEX_485A304E42592D52', 'IEX_4A4B355446472D52'], json_response.map{ |record| record["iex_id"]}
   end
