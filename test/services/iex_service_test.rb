@@ -314,11 +314,11 @@ class IexServiceTest < ActiveSupport::TestCase
     assert IexIsinMapping.where(isin: MISSING_ISIN).none?
   end
 
-  test "#get_symbols_by_isin does not call API if isin has invalid format" do
+  test "#get_symbols_by_isin does not call API for partial isin" do
     RestClient.stub :post, @rest_should_never_be_called do
-      res, symbols = @service.get_symbols_by_isin("DE1234")
+      res, symbols = @service.get_symbols_by_isin("DE00098")
       assert res
-      assert symbols.empty?
+      assert_equal [iex_symbols(:iex_1), iex_symbols(:iex_2)], symbols
     end
   end
 
@@ -518,6 +518,12 @@ class IexServiceTest < ActiveSupport::TestCase
   test "#search_symbols find symbols by isin" do
     RestClient.stub :post, @rest_should_never_be_called do
       assert_equal [true, [iex_symbols(:iex_1), iex_symbols(:iex_2)]], @service.search_symbols('DE0009848119')
+    end
+  end
+
+  test "#search_symbols find symbols by partial isin" do
+    RestClient.stub :post, @rest_should_never_be_called do
+      assert_equal [true, [iex_symbols(:iex_1), iex_symbols(:iex_2)]], @service.search_symbols('DE00098')
     end
   end
 

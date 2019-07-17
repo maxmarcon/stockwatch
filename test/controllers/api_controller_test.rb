@@ -182,6 +182,20 @@ class ApiControllerTest < ActionDispatch::IntegrationTest
     assert_equal ['IEX_485A304E42592D52', 'IEX_4A4B355446472D52'], json_response.map{ |record| record["iex_id"]}
   end
 
+  test "GET /search returns symbols when partial isin is passed as search term" do
+    isin = 'DE00098'
+
+    get "/v1/search", params: {q: isin}, headers: {"Accept" => 'application/json' }
+
+    assert_response :ok
+    json_response = @response.parsed_body
+    assert 2, json_response.length
+    json_response.each do |record|
+      assert record.values_at("symbol", "exchange", "name", "date", "type", "iex_id", "region", "currency", "isin").all?
+    end
+    assert_equal ['IEX_485A304E42592D52', 'IEX_4A4B355446472D52'], json_response.map{ |record| record["iex_id"]}
+  end
+
   test "GET /search returns 404 Not Found if no symbol is found" do
     get "/v1/search", params: {q: "XXXXXX"}, headers: {"Accept" => 'application/json' }
 
