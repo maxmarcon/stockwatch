@@ -1,20 +1,32 @@
 <template lang="pug">
-b-container
-  message-bar#errorBar(ref="errorBar" variant="danger" :seconds=10)
-  b-row.mt-3
-    b-col(md="2")
-      b-form-select(:options="symbols" v-model="symbol" @change="loadSymbol")
-        template(slot="first")
-          option(:value="null" disabled) Select a symbol
-    b-col(md="2")
-      b-form-select(:options="periods" v-model="period" @change="loadSymbol")
+b-card
+  template(slot="header")
+    message-bar#errorBar(ref="errorBar" variant="danger" :seconds=10)
+    b-row
+      b-col.mt-1(md="6")
+        vue-tags-input(
+          v-model="tag"
+          :tags="tags"
+          @tags-changed="newTags"
+          @before-adding-tag="beforeAddingTag"
+          :disabled="requestOngoing"
+          :avoidAddingDuplicates="true"
+          :max-tags="5"
+          :maxlength="50"
+          placeholder="Enter an ISIN or a ticker..."
+        )
+          template(slot="tag-right" slot-scope="props")
+            span(v-if="props.tag.symbol != props.tag.text") &nbsp; {{ "(" + props.tag.symbol + ")" }}
+      b-col.mt-1(md="auto")
+        b-form-select(:options="periods" v-model="period" @change="updateChart")
+      b-col.mt-1(md="auto")
+        .d-flex.justify-content-center
+          b-spinner(v-if="requestOngoing")
 
-  b-row
-    b-col
-      canvas(ref="canvas")
+  canvas(:style="{visibility: tags.length > 0 ? 'visible' : 'hidden'}" ref="canvas")
 </template>
-
 <script>
+import VueTagsInput from '@johmun/vue-tags-input';
 import {
   RestMixin
 } from "./packs/globals"
@@ -24,8 +36,13 @@ import Chart from 'chart.js'
 
 export default {
   mixins: [RestMixin],
+  components: {
+    VueTagsInput
+  },
   data() {
     return {
+      tags: [],
+      tag: '',
       symbol: null,
       symbols: ['AAAGX', 'SAP'],
       period: '1m',
@@ -47,64 +64,90 @@ export default {
       }, {
         value: '5y',
         text: '5 Years'
-      }]
+      }],
+      chart: null
     }
   },
+  mounted() {
+    this.chart = new Chart(this.$refs.canvas, {
+      type: 'line'
+    })
+  },
   methods: {
-    async loadSymbol() {
-      if (!this.symbol || !this.period) {
-        return
-      }
-
-      console.log(`loading ${this.symbol}`)
-
-      let response = await this.restRequest(`chart/${this.period}`, {
-        params: {
-          symbol: this.symbol
+    async beforeAddingTag({
+      tag,
+      addTag
+    }) {
+      tag.text = tag.text.toUpperCase()
+      console.log("searching for... " + tag.text)
+      try {
+        let response = await this.restRequest('search', {
+          params: {
+            q: tag.text
+          }
+        })
+        let iex_symbol = response[0]
+        tag.symbol = iex_symbol.symbol
+        addTag(tag)
+      } catch (error) {
+        if (error.response && error.response.status != 404) {
+          throw error
         }
-      })
+      }
+    },
+    newTags(tags) {
+      this.tags = tags
+      this.updateChart()
+    },
+    async updateChart() {
+      let datasets = await Promise.all(this.tags.map(async ({
+        text,
+        symbol
+      }) => {
+        let response = await this.restRequest(`chart/${this.period}`, {
+          params: {
+            symbol: symbol
+          }
+        })
 
-console.dir(response)
-      let data = response.data.map(({
-        close,
-        date
-      }) => ({
-        x: dateFns.parse(date),
-        y: close
+        let data = response.data.map(({
+          close,
+          date
+        }) => ({
+          x: dateFns.parse(date),
+          y: close
+        }))
+
+        return {
+          label: symbol,
+          fill: false,
+          data
+        }
       }))
 
-      let chart = new Chart(this.$refs.canvas, {
-        type: 'line',
-        data: {
-          datasets: [{
-            label: this.symbol,
-            fill: false,
-            data
-          }]
-        },
-        options: {
-          scales: {
-            yAxes: [{
-              scaleLabel: {
-                display: true,
-                labelString: response.currency
-              },
-              ticks: {
-                beginAtZero: true
-              }
-            }],
-            xAxes: [{
-              type: 'time',
-              time: {
-                unit: 'month',
-                displayFormats: {
-                  month: 'MMM YYYY'
-                }
-              }
-            }]
+      this.chart.data.datasets = datasets
+
+      this.chart.options.scales = {
+        yAxes: [{
+          scaleLabel: {
+            display: true,
+            labelString: 'USD'
+          },
+          ticks: {
+            min: 0
           }
-        }
-      })
+        }],
+        xAxes: [{
+          type: 'time',
+          time: {
+            unit: 'month',
+            displayFormats: {
+              month: 'MMM YYYY'
+            }
+          }
+        }]
+      }
+      this.chart.update()
     }
   }
 }

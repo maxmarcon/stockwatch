@@ -1,5 +1,4 @@
 export const RestMixin = {
-
   data() {
     return {
       requestOngoing: false,
@@ -12,10 +11,9 @@ export const RestMixin = {
         url: [null, this.apiVersion, path].join('/'),
         headers: {
           'Accept': 'application/json'
-        }
+        },
+        ignoreErrorStatus: [404],
       }, config);
-
-      let self = this;
 
       this.requestOngoing = true;
 
@@ -24,13 +22,12 @@ export const RestMixin = {
         return response.data
       } catch (error) {
         let message = (error.response ? error.response.data.message : "An error occurred")
-        console.log(error)
-        if (this.$refs.errorBar) {
+        if (this.$refs.errorBar && (!error.response || !config.ignoreErrorStatus.includes(error.response.status))) {
           this.$refs.errorBar.show(message)
         }
         throw error
       } finally {
-        self.requestOngoing = false;
+        this.requestOngoing = false;
       }
     }
   }
