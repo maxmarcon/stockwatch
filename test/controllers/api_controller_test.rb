@@ -157,7 +157,7 @@ class ApiControllerTest < ActionDispatch::IntegrationTest
     assert_equal "not_found", @response.parsed_body["message"]
   end
 
-  test "GET /search returns symbols when symbol is pased as search term" do
+  test "GET /search returns symbols when symbol is passed as search term" do
     symbol = '1SSEMYMA4-MM'
 
     get "/v1/search", params: {q: symbol}, headers: {"Accept" => 'application/json' }
@@ -169,7 +169,7 @@ class ApiControllerTest < ActionDispatch::IntegrationTest
     assert_equal symbol, json_response[0]["symbol"]
   end
 
-  test "GET /search returns symbols when iex_id is pased as search term" do
+  test "GET /search returns symbols when iex_id is passed as search term" do
     iex_id = 'IEX_485A304E42592D52'
 
     get "/v1/search", params: {q: iex_id}, headers: {"Accept" => 'application/json' }
@@ -179,6 +179,20 @@ class ApiControllerTest < ActionDispatch::IntegrationTest
     assert 1, json_response.length
     assert json_response[0].values_at("symbol", "exchange", "name", "date", "type", "iex_id", "region", "currency").all?
     assert_equal iex_id, json_response[0]["iex_id"]
+  end
+
+  test "GET /search returns symbols when isin is passed as search term" do
+    isin = 'DE0009848119'
+
+    get "/v1/search", params: {q: isin}, headers: {"Accept" => 'application/json' }
+
+    assert_response :ok
+    json_response = @response.parsed_body
+    assert 2, json_response.length
+    json_response.each do |record|
+      assert record.values_at("symbol", "exchange", "name", "date", "type", "iex_id", "region", "currency").all?
+    end
+    assert_equal ['IEX_485A304E42592D52', 'IEX_4A4B355446472D52'], json_response.map{ |record| record["iex_id"]}
   end
 
   test "GET /search returns 404 Not Found if no symbol is found" do

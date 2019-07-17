@@ -33,7 +33,10 @@ class IexService
 
   def search_symbols(term)
     if term.present?
-      [true, IexSymbol.where(symbol: term).or(IexSymbol.where(iex_id: term)).to_a]
+      query = IexSymbol.where(symbol: term).or(IexSymbol.where(iex_id: term))
+      status, by_isin = get_symbols_by_isin(term)
+      by_isin = [] unless status
+      [true, query.to_a + by_isin]
     else
       [false, :search_term_missing]
     end

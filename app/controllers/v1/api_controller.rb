@@ -44,5 +44,21 @@ module V1
         raise ActionController::BadRequest, result
       end
     end
+
+    def search
+      term = params['q']
+
+      status, result = @iex_service.search_symbols(term)
+
+      if status
+        if result.any?
+          render json: result.map{ |record| record.serializable_hash(except: [:id, :created_at, :updated_at]) }
+        else
+          raise ActiveRecord::RecordNotFound, "not_found"
+        end
+      else
+        raise ActionController::BadRequest, result
+      end
+    end
   end
 end

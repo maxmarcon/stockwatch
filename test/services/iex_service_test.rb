@@ -515,6 +515,12 @@ class IexServiceTest < ActiveSupport::TestCase
     assert_equal [true, [iex_symbols(:iex_1)]], @service.search_symbols('1SSEMYM1-MM')
   end
 
+  test "#search_symbols find symbols by isin" do
+    RestClient.stub :post, @rest_should_never_be_called do
+      assert_equal [true, [iex_symbols(:iex_1), iex_symbols(:iex_2)]], @service.search_symbols('DE0009848119')
+    end
+  end
+
   test "#search_symbols returns empty array if nothing is found" do
     assert_equal [true, []], @service.search_symbols('XXXXXXX')
   end
