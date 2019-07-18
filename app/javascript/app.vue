@@ -10,7 +10,7 @@ b-card
           @tags-changed="tagsChanged"
           :avoidAddingDuplicates="true"
           :autocomplete-items="autocompleteItems"
-          :max-tags="5"
+          :max-tags="10"
           :maxlength="50"
           :add-only-from-autocomplete="true"
           placeholder="Enter an ISIN or a ticker..."
