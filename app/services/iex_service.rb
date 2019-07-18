@@ -33,13 +33,27 @@ class IexService
 
   def search_symbols(term)
     if term.present?
-      query_top = IexSymbol.where('symbol ilike ?', "#{term}%").or(IexSymbol.where('iex_id ilike ?', "#{term}%"))
-      query_bottom = IexSymbol.where('symbol ilike ?', "%#{term}%").or(IexSymbol.where('name ilike ?', "%#{term}%"))
+      query_top = IexSymbol
+        .where('symbol ilike ?', "#{term}%")
+        .or(IexSymbol.where('iex_id ilike ?', "#{term}%"))
+        .order(:symbol)
+        .limit(5)
+
+      query_bottom = IexSymbol
+        .where('symbol ilike ?', "%#{term}%")
+        .or(IexSymbol.where('name ilike ?', "%#{term}%"))
+        .order(:symbol)
+        .limit(5)
 
       status, by_isin = get_symbols_by_isin(term)
       by_isin = [] unless status
 
-      [true, by_isin + (query_top.order(:symbol).take(5) + query_bottom.order(:symbol).take(5)).uniq]
+      if (Rails.env.development?)
+        Rails.logger.info(query_top.to_sql)
+        Rails.logger.info(query_bottom.to_sql)
+      end
+
+      [true, (by_isin + query_top.to_a + query_bottom.to_a).uniq]
     else
       [false, :search_term_missing]
     end
@@ -56,13 +70,17 @@ class IexService
       end
     end
 
-    [
-      true,
-      IexSymbol.includes(:iex_isin_mapping)
+    query = IexSymbol.includes(:iex_isin_mapping)
       .where("iex_isin_mappings.isin ilike ?", "%#{isin}%")
       .references(:iex_isin_mapping)
-      .take(5)
-      .select{ |iex_symbol| iex_symbol.isin = iex_symbol.iex_isin_mapping.isin}
+      .order(:symbol)
+      .limit(5)
+
+    Rails.logger.info(query.to_sql) if Rails.env.development?
+
+    [
+      true,
+      query.select{ |iex_symbol| iex_symbol.isin = iex_symbol.iex_isin_mapping.isin}
     ]
   end
 
