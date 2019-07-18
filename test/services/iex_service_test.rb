@@ -137,6 +137,22 @@ class IexServiceTest < ActiveSupport::TestCase
     @chart_correct_response.expect :body, CHART_CORRECT_RESPONSE.to_json
   end
 
+  test '#initialize throws if access_token is missing' do
+
+    e = assert_raise RuntimeError do
+      IexService.new(
+        {
+          "base_url" => "https://fake.api.com/",
+          'symbol_lists' => SYMBOL_LISTS,
+          :access_token => nil,
+          'mapping_max_age' => 2.weeks
+        }
+      )
+    end
+
+    assert_match "You need to specify the IEX access token", e.message
+  end
+
   test '#init_symbols load symbols from the api' do
 
     preexisting = IexSymbol.count

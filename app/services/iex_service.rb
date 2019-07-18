@@ -7,8 +7,10 @@ class IexService
   CHART_ENTRY_ATTRS = %w(symbol date close volume change change_percent change_over_time)
 
   def initialize(config = {})
-    @config = Rails.configuration.iex.merge(Rails.application.credentials.iex, config.except('api_service'))
+    @config = Rails.configuration.iex.merge(Rails.application.credentials.iex || {}, config.except('api_service'))
     @api_service = ApiService.new({"iex" => @config}.merge(config.fetch('api_service', {})))
+
+    raise "You need to specify the IEX access token in the Rails credentials under iex -> access_token" unless @config[:access_token]
 
     RestClient.log = Rails.logger
   end

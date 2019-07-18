@@ -31,13 +31,18 @@ After having cloned the repository and obtained an API token, do the following:
     access_token: <YOUR_IEX_CLOUD_API_TOKEN>
   ```
 * Start the database with: `docker-compose up`
+* Run the migrations with: `./bin/rails db:migrate`
 * Run `./bin/rails iex:init` to fetch the financial symbols from IEX Cloud. This might take a while.
   The sets of symbols that will be fetched are configured in `config/iex.yml` as a list of API endpoints.
   You can modify the list, and you can work your way through the available API endpoints with symbols [here](https://iexcloud.io/docs/api/#reference-data). Be aware that there is a lot of overlap between different sets.
 
 Finally, run `./bin/rails s` to start the server, and visit `localhost:3000` (It will take a while the fist time because Webpack needs to compile the front-end assets).
 
+## Testing
 
+If you want to see some unit tests running, run:
 
+* `./bin/rails db:test:prepare`
+* `./bin/rails test`
 
 
