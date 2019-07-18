@@ -7,8 +7,6 @@ b-card
         vue-tags-input(
           v-model="tag"
           :tags="tags"
-          @before-adding-tag="beforeAddingTag"
-          @before-deleting-tag="beforeDeletingTag"
           @tags-changed="tagsChanged"
           :avoidAddingDuplicates="true"
           :autocomplete-items="autocompleteItems"
@@ -29,7 +27,7 @@ b-card
               span.em.small &nbsp; {{ item.name }}
 
       b-col.mt-1(md="auto")
-        b-form-select(:options="periods" v-model="period" @change="periodsChanged")
+        b-form-select(:options="periods" v-model="period" @change="updateDatasets")
       b-col.mt-1(md="auto")
         .d-flex.justify-content-center
           b-spinner(v-if="requestOngoing")
@@ -52,6 +50,8 @@ const COLORS = [
   'rgba(255,255,0,0.2)',
   'rgba(0,0,0,0.2)'
 ]
+
+const LOCAL_STORAGE_KEY = 'stockwatch_tags'
 
 export default {
   mixins: [RestMixin],
@@ -91,6 +91,15 @@ export default {
     this.chart = new Chart(this.$refs.canvas, {
       type: 'line'
     })
+
+    setTimeout(() => {
+      if (localStorage) {
+        let storedTags = localStorage.getItem(LOCAL_STORAGE_KEY)
+        if (storedTags) {
+          this.tagsChanged(JSON.parse(storedTags))
+        }
+      }
+    }, 1500)
   },
   watch: {
     tag: function(newTag, _oldTag) {
@@ -134,31 +143,73 @@ export default {
         }
       }, 200)
     },
-    async periodsChanged() {
-      for (let i = 0; i < this.chart.data.datasets.length; ++i) {
-        let dataset = this.chart.data.datasets[i]
-        let data = await this.fetchData(dataset.symbol)
-        if (data) {
-          dataset.data = data.data
+    tagsChanged(newTags) {
+      this.tags = newTags
+      this.updateDatasets()
+      if (localStorage) {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(this.tags))
+      }
+    },
+    async updateDatasets() {
+
+      let tagsToInvalidate = []
+
+      for (let i = 0; i < this.tags.length; ++i) {
+        let tag = this.tags[i]
+
+        let currentDataset = this.chart.data.datasets.find(({
+          symbol
+        }) => symbol == tag.text)
+
+        if (currentDataset && currentDataset.period != this.period) {
+          let data = await this.fetchData(tag.text, this.period)
+          if (data) {
+            currentDataset.data = data.data
+            currentDataset.period = this.period
+          } else {
+            tagsToInvalidate.push(i)
+          }
+
+        } else if (!currentDataset) {
+          let data = await this.fetchData(tag.text, this.period)
+
+          if (data) {
+            let color = COLORS[this.chart.data.datasets.length % COLORS.length]
+
+            this.chart.data.datasets.push({
+              symbol: tag.text,
+              period: this.period,
+              label: `${tag.text} (${data.currency})`,
+              yAxisID: data.currency,
+              fill: false,
+              backgroundColor: color,
+              borderColor: color,
+              data: data.data
+            })
+          } else {
+            tagsToInvalidate.push(i)
+          }
         }
       }
 
+      this.chart.data.datasets = this.chart.data.datasets
+        .filter(({
+          symbol
+        }) => this.tags.find(({
+          text
+        }) => text == symbol))
+
+      tagsToInvalidate.forEach(i => {
+        this.tags.splice(i, 1, Object.assign({}, this.tags[i], {
+          classes: 'ti-invalid'
+        }))
+      })
+
       this.updateChart()
     },
-    tagsChanged(newTags) {
-      this.tags = newTags
-    },
-    beforeDeletingTag({tag, deleteTag}) {
-      let index = this.chart.data.datasets.findIndex(({symbol}) => symbol == tag.text)
-      if (index > -1) {
-        this.chart.data.datasets.splice(index, 1)
-      }
-      this.updateChart()
-      deleteTag()
-    },
-    async fetchData(symbol) {
+    async fetchData(symbol, period) {
       try {
-        let response = await this.restRequest(`chart/${this.period}`, {
+        let response = await this.restRequest(`chart/${period}`, {
           params: {
             symbol
           }
@@ -183,27 +234,6 @@ export default {
         }
       }
     },
-    async beforeAddingTag({tag, addTag}) {
-      let data = await this.fetchData(tag.text)
-      let color = COLORS[this.chart.data.datasets.length % COLORS.length]
-
-      if (data) {
-        this.chart.data.datasets.push({
-          symbol: tag.text,
-          label: `${tag.text} (${data.currency})`,
-          yAxisID: data.currency,
-          fill: false,
-          backgroundColor: color,
-          borderColor: color,
-          data: data.data
-        })
-      } else {
-        tag.classes = 'ti-invalid'
-      }
-
-      this.updateChart()
-      addTag()
-    },
     updateChart() {
       let currencies = this.chart.data.datasets.map(({
         yAxisID
@@ -219,7 +249,7 @@ export default {
       }))
 
       let unit = null
-      switch(this.period) {
+      switch (this.period) {
         case '1y':
         case '2y':
           unit = 'month'
