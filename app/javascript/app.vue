@@ -28,7 +28,7 @@ b-card
 
       b-col.mt-1(md="auto")
         b-form-select(:options="periods" v-model="period" @change="updateDatasets")
-      b-col.mt-1(md="auto")
+      b-col.mt-2(md="auto")
         .d-flex.justify-content-center
           b-spinner(v-if="requestOngoing")
 
@@ -94,9 +94,15 @@ export default {
 
     setTimeout(() => {
       if (localStorage) {
-        let storedTags = localStorage.getItem(LOCAL_STORAGE_KEY)
-        if (storedTags) {
-          this.tagsChanged(JSON.parse(storedTags))
+        let savePoint = localStorage.getItem(LOCAL_STORAGE_KEY)
+        if (savePoint) {
+          const {period, tags} = JSON.parse(savePoint)
+          if (period) {
+            this.period = period
+          }
+          if (tags) {
+            this.tagsChanged(tags)
+          }
         }
       }
     }, 1500)
@@ -146,9 +152,6 @@ export default {
     tagsChanged(newTags) {
       this.tags = newTags
       this.updateDatasets()
-      if (localStorage) {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(this.tags))
-      }
     },
     async updateDatasets() {
 
@@ -206,6 +209,13 @@ export default {
       })
 
       this.updateChart()
+
+      if (localStorage) {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({
+          tags: this.tags,
+          period: this.period
+        }))
+      }
     },
     async fetchData(symbol, period) {
       try {
