@@ -36,7 +36,7 @@ After having cloned the repository and obtained an API token, do the following:
   The sets of symbols that will be fetched are configured in `config/iex.yml` as a list of API endpoints.
   You can modify the list, and you can work your way through the available API endpoints with symbols [here](https://iexcloud.io/docs/api/#reference-data). Be aware that there is a lot of overlap between different sets.
 
-Finally, run `./bin/rails s` to start the server, and visit `localhost:3000` (It will take a while the fist time because Webpack needs to compile the front-end assets).
+Finally, run `./bin/rails s` to start the server, and visit `localhost:3000` (It will take a while the first time because Webpack needs to compile the front-end assets).
 
 ## Testing
 
