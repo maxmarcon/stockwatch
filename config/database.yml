@@ -24,7 +24,6 @@ test:
   database: stockwatch_test
   user: stockwatch
   password: secret
-  port: 54320
 
 production:
   <<: *default
