@@ -90,7 +90,8 @@ export default {
       }],
       autocompleteItems: [],
       chart: null,
-      searchQueryTimeout: null
+      searchQueryTimeout: null,
+      nextColor: 0
     }
   },
   mounted() {
@@ -176,6 +177,13 @@ export default {
     },
     async updateDatasets(newTags) {
 
+      this.chart.data.datasets = this.chart.data.datasets
+        .filter(({
+          symbol
+        }) => newTags.find(({
+          text
+        }) => text == symbol))
+
       for (let i = 0; i < newTags.length; ++i) {
         let tag = newTags[i]
 
@@ -196,7 +204,7 @@ export default {
           let data = await this.fetchData(tag.text, this.period)
 
           if (data) {
-            let color = COLORS[this.chart.data.datasets.length % COLORS.length]
+            let color = COLORS[this.nextColor++ % COLORS.length]
 
             this.chart.data.datasets.push({
               symbol: tag.text,
@@ -213,13 +221,6 @@ export default {
           }
         }
       }
-
-      this.chart.data.datasets = this.chart.data.datasets
-        .filter(({
-          symbol
-        }) => newTags.find(({
-          text
-        }) => text == symbol))
 
       this.updateChart()
 
