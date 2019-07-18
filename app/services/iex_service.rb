@@ -39,13 +39,13 @@ class IexService
         .where('symbol ilike ?', "#{term}%")
         .or(IexSymbol.where('iex_id ilike ?', "#{term}%"))
         .order(:symbol)
-        .limit(5)
+        .limit(10)
 
       query_bottom = IexSymbol
         .where('symbol ilike ?', "%#{term}%")
         .or(IexSymbol.where('name ilike ?', "%#{term}%"))
         .order(:symbol)
-        .limit(5)
+        .limit(10)
 
       status, by_isin = get_symbols_by_isin(term)
       by_isin = [] unless status
