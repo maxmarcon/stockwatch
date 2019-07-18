@@ -7,7 +7,7 @@ Stockwatch is a simple financial analysis tool to compare the performances of yo
 It allows you to easily search for securities by symbol or ISIN and plot them all
 in a single chart for easy comparison. It supports different currencies and time ranges.
 
-## Data souce
+## Data source
 
 Stockwatch uses the [IEX Cloud API](https://iexcloud.io/) to retrieve financial data.
 
@@ -21,7 +21,7 @@ Other prerequisites:
 * Yarn and NPM
 * Docker
 
-After having cloned the repository and gotten a token, do the following:
+After having cloned the repository and obtained an API token, do the following:
 
 * Run: `./bin/bundle`
 * Run: `yarn`
