@@ -27,7 +27,7 @@ b-card
               span.em.small &nbsp; {{ item.name }}
 
       b-col.mt-1(md="auto")
-        b-form-select(:options="periods" v-model="period" @change="updateDatasets")
+        b-form-select(:options="periods" v-model="period" @change="periodChanged")
       b-col.mt-2(md="auto")
         .d-flex.justify-content-center
           b-spinner(v-if="requestOngoing")
@@ -44,11 +44,17 @@ import dateFns from 'date-fns'
 import Chart from 'chart.js'
 
 const COLORS = [
-  'rgba(51,204,0,0.2)',
-  'rgba(0,153,255,0.2)',
-  'rgba(255,51,51,0.2)',
-  'rgba(255,255,0,0.2)',
-  'rgba(0,0,0,0.2)'
+  '#5899DA',
+  '#E8743B',
+  '#19A979',
+  '#ED4A7B',
+  '#945ECF',
+  '#13A4B4',
+  '#525DF4',
+  '#BF399E',
+  '#6C8893',
+  '#EE6868',
+  '#2F6497'
 ]
 
 const LOCAL_STORAGE_KEY = 'stockwatch_tags'
@@ -96,7 +102,10 @@ export default {
       if (localStorage) {
         let savePoint = localStorage.getItem(LOCAL_STORAGE_KEY)
         if (savePoint) {
-          const {period, tags} = JSON.parse(savePoint)
+          const {
+            period,
+            tags
+          } = JSON.parse(savePoint)
           if (period) {
             this.period = period
           }
@@ -149,16 +158,26 @@ export default {
         }
       }, 200)
     },
-    tagsChanged(newTags) {
-      this.tags = newTags
-      this.updateDatasets()
+    updateStorage() {
+      if (localStorage) {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({
+          tags: this.tags,
+          period: this.period
+        }))
+      }
     },
-    async updateDatasets() {
+    async tagsChanged(newTags) {
+      this.tags = await this.updateDatasets(newTags)
+      this.updateStorage()
+    },
+    periodChanged() {
+      this.updateDatasets(this.tags)
+      this.updateStorage()
+    },
+    async updateDatasets(newTags) {
 
-      let tagsToInvalidate = []
-
-      for (let i = 0; i < this.tags.length; ++i) {
-        let tag = this.tags[i]
+      for (let i = 0; i < newTags.length; ++i) {
+        let tag = newTags[i]
 
         let currentDataset = this.chart.data.datasets.find(({
           symbol
@@ -170,7 +189,7 @@ export default {
             currentDataset.data = data.data
             currentDataset.period = this.period
           } else {
-            tagsToInvalidate.push(i)
+            tag.classes = 'ti-invalid'
           }
 
         } else if (!currentDataset) {
@@ -190,7 +209,7 @@ export default {
               data: data.data
             })
           } else {
-            tagsToInvalidate.push(i)
+            tag.classes = 'ti-invalid'
           }
         }
       }
@@ -198,24 +217,13 @@ export default {
       this.chart.data.datasets = this.chart.data.datasets
         .filter(({
           symbol
-        }) => this.tags.find(({
+        }) => newTags.find(({
           text
         }) => text == symbol))
 
-      tagsToInvalidate.forEach(i => {
-        this.tags.splice(i, 1, Object.assign({}, this.tags[i], {
-          classes: 'ti-invalid'
-        }))
-      })
-
       this.updateChart()
 
-      if (localStorage) {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({
-          tags: this.tags,
-          period: this.period
-        }))
-      }
+      return newTags
     },
     async fetchData(symbol, period) {
       try {
