@@ -7,8 +7,9 @@ b-card
         vue-tags-input(
           v-model="tag"
           :tags="tags"
+          @before-adding-tag="beforeAddingTag"
+          @before-deleting-tag="beforeDeletingTag"
           @tags-changed="tagsChanged"
-          :disabled="requestOngoing"
           :avoidAddingDuplicates="true"
           :autocomplete-items="autocompleteItems"
           :max-tags="5"
@@ -17,18 +18,18 @@ b-card
           placeholder="Enter an ISIN or a ticker..."
         )
           template(v-slot:tag-right="{tag}")
-            span(v-if="tag.isin") &nbsp; {{ "(" + tag.isin + ")" }}
+            span(v-if="tag.isin") &nbsp; {{ "[" + tag.isin + "]" }}
 
           template(
             v-slot:autocomplete-item="{item, performAdd}"
           )
             div(@click="performAdd(item)")
-              span &nbsp; {{ item.text }}
-              span(v-if="item.isin") &nbsp; {{ '(' + item.isin + ')' }}
+              span &nbsp; {{ `${item.text} (${item.currency})` }}
+              span(v-if="item.isin") &nbsp; {{ '[' + item.isin + ']' }}
               span.em.small &nbsp; {{ item.name }}
 
       b-col.mt-1(md="auto")
-        b-form-select(:options="periods" v-model="period" @change="updateChart")
+        b-form-select(:options="periods" v-model="period" @change="periodsChanged")
       b-col.mt-1(md="auto")
         .d-flex.justify-content-center
           b-spinner(v-if="requestOngoing")
@@ -43,6 +44,14 @@ import {
 
 import dateFns from 'date-fns'
 import Chart from 'chart.js'
+
+const COLORS = [
+  'rgba(51,204,0,0.2)',
+  'rgba(0,153,255,0.2)',
+  'rgba(255,51,51,0.2)',
+  'rgba(255,255,0,0.2)',
+  'rgba(0,0,0,0.2)'
+]
 
 export default {
   mixins: [RestMixin],
@@ -75,7 +84,7 @@ export default {
       }],
       autocompleteItems: [],
       chart: null,
-      debounce: null
+      searchQueryTimeout: null
     }
   },
   mounted() {
@@ -93,12 +102,13 @@ export default {
       inputText = inputText.trim()
 
       if (inputText.length < 2) {
+        this.autocompleteItems = []
         return
       }
 
-      clearTimeout(this.debounce)
+      clearTimeout(this.searchQueryTimeout)
 
-      this.debounce = setTimeout(async () => {
+      this.searchQueryTimeout = setTimeout(async () => {
         try {
           let response = await this.restRequest('search', {
             params: {
@@ -108,81 +118,138 @@ export default {
           this.autocompleteItems = response.map(({
             symbol,
             name,
-            isin
+            isin,
+            currency
           }) => ({
-            symbol,
+            text: symbol,
             name,
             isin,
-            text: symbol
+            currency
           }))
         } catch (error) {
+          this.autocompleteItems = []
           if (!error.response || error.response.status != 404) {
             throw error
           }
-          this.autocompleteItems = []
         }
       }, 200)
     },
-    tagsChanged(tags) {
-      this.tags = tags
+    async periodsChanged() {
+      for (let i = 0; i < this.chart.data.datasets.length; ++i) {
+        let dataset = this.chart.data.datasets[i]
+        let data = await this.fetchData(dataset.symbol)
+        if (data) {
+          dataset.data = data.data
+        }
+      }
+
       this.updateChart()
     },
-    async updateChart() {
-      let datasets = await Promise.all(this.tags.filter(({symbol}) => symbol).map(async ({
-        text,
-        symbol
-      }) => {
-
-        try {
-          let response = await this.restRequest(`chart/${this.period}`, {
-            params: {
-              symbol: symbol
-            }
-          })
-
-          let data = response.data.map(({
-            close,
-            date
-          }) => ({
-            x: dateFns.parse(date),
-            y: close
-          }))
-
-          return {
-            label: symbol,
-            fill: false,
-            data
+    tagsChanged(newTags) {
+      this.tags = newTags
+    },
+    beforeDeletingTag({tag, deleteTag}) {
+      let index = this.chart.data.datasets.findIndex(({symbol}) => symbol == tag.text)
+      if (index > -1) {
+        this.chart.data.datasets.splice(index, 1)
+      }
+      this.updateChart()
+      deleteTag()
+    },
+    async fetchData(symbol) {
+      try {
+        let response = await this.restRequest(`chart/${this.period}`, {
+          params: {
+            symbol
           }
-        } catch (error) {
-          if (!error.response || error.response.status != 404) {
-            throw error
-          }
+        })
+
+        let data = response.data.map(({
+          close,
+          date
+        }) => ({
+          x: dateFns.parse(date),
+          y: close
+        }))
+
+        return {
+          data,
+          currency: response.currency
         }
-        return null
+
+      } catch (error) {
+        if (!error.response || error.response.status != 404) {
+          throw error
+        }
+      }
+    },
+    async beforeAddingTag({tag, addTag}) {
+      let data = await this.fetchData(tag.text)
+      let color = COLORS[this.chart.data.datasets.length % COLORS.length]
+
+      if (data) {
+        this.chart.data.datasets.push({
+          symbol: tag.text,
+          label: `${tag.text} (${data.currency})`,
+          yAxisID: data.currency,
+          fill: false,
+          backgroundColor: color,
+          borderColor: color,
+          data: data.data
+        })
+      } else {
+        tag.classes = 'ti-invalid'
+      }
+
+      this.updateChart()
+      addTag()
+    },
+    updateChart() {
+      let currencies = this.chart.data.datasets.map(({
+        yAxisID
+      }) => yAxisID)
+
+      let yAxes = currencies.map(currency => ({
+        id: currency,
+        type: 'linear',
+        scaleLabel: {
+          display: true,
+          labelString: currency
+        }
       }))
 
-      this.chart.data.datasets = datasets.filter(d => d)
-
-      this.chart.options.scales = {
-        yAxes: [{
-          scaleLabel: {
-            display: true,
-            labelString: 'USD'
-          },
-          ticks: {
-            min: 0
-          }
-        }],
-        xAxes: [{
-          type: 'time',
-          time: {
-            unit: 'month',
-            displayFormats: {
-              month: 'MMM YYYY'
-            }
-          }
-        }]
+      let unit = null
+      switch(this.period) {
+        case '1y':
+        case '2y':
+          unit = 'month'
+          break
+        case '5y':
+          unit = 'quarter'
+          break
+        case '6m':
+        case '3m':
+          unit = 'week'
+          break
+        case '1m':
+          unit = 'day'
+          break
+        default:
+          unit = 'day'
       }
+
+      this.chart.options = {
+        scales: {
+          yAxes,
+          xAxes: [{
+            type: 'time',
+            time: {
+              unit
+            }
+          }]
+        }
+      }
+
       this.chart.update()
     }
   }
