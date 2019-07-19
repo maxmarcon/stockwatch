@@ -33,7 +33,7 @@ b-card
         b-form-select(:options="periods" v-model="period" @change="periodChanged")
       b-col.mt-2(md="auto")
         .d-flex.justify-content-center
-          b-spinner(v-if="requestOngoing")
+          b-spinner(v-if="requestOngoing || updateOngoing")
 
   canvas(:style="{visibility: tags.length > 0 ? 'visible' : 'hidden'}" ref="canvas")
 </template>
@@ -94,12 +94,27 @@ export default {
       autocompleteItems: [],
       chart: null,
       searchQueryTimeout: null,
-      nextColor: 0
+      nextColor: 0,
+      updateOngoing: false
     }
   },
   mounted() {
     this.chart = new Chart(this.$refs.canvas, {
-      type: 'line'
+      type: 'line',
+      options: {
+        tooltips: {
+          callbacks: {
+            afterLabel: (tooltTipItem, data) => data.datasets[tooltTipItem.datasetIndex].name,
+            title: (tooltTipItem, data) => {
+              if (tooltTipItem instanceof Array) {
+                tooltTipItem = tooltTipItem[0]
+              }
+              return dateFns.format(data.datasets[tooltTipItem.datasetIndex].data[tooltTipItem.index].x,
+                'MMM D, YYYY')
+            }
+          }
+        }
+      }
     })
 
     setTimeout(() => {
@@ -171,15 +186,23 @@ export default {
       }
     },
     async tagsChanged(newTags) {
-      this.tags = await this.updateDatasets(newTags)
-      this.updateStorage()
+      if (this.updateOngoing) {
+        return
+      }
+
+      this.updateOngoing = true
+      try {
+        this.tags = await this.updateDatasets(newTags)
+        this.updateStorage()
+      } finally {
+        this.updateOngoing = false
+      }
     },
     periodChanged() {
       this.updateDatasets(this.tags)
       this.updateStorage()
     },
     async updateDatasets(newTags) {
-
       this.chart.data.datasets = this.chart.data.datasets
         .filter(({
           symbol
@@ -302,28 +325,14 @@ export default {
           break
       }
 
-      this.chart.options = {
-        scales: {
-          yAxes,
-          xAxes: [{
-            type: 'time',
-            time: {
-              unit
-            }
-          }]
-        },
-        tooltips: {
-          callbacks: {
-            afterLabel: (tooltTipItem, data) => data.datasets[tooltTipItem.datasetIndex].name,
-            title: (tooltTipItem, data) => {
-              if (tooltTipItem instanceof Array) {
-                tooltTipItem = tooltTipItem[0]
-              }
-              return dateFns.format(data.datasets[tooltTipItem.datasetIndex].data[tooltTipItem.index].x,
-                'MMM D, YYYY')
-            }
+      this.chart.options.scales = {
+        yAxes,
+        xAxes: [{
+          type: 'time',
+          time: {
+            unit
           }
-        }
+        }]
       }
 
       this.chart.update()
