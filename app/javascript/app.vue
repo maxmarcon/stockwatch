@@ -126,7 +126,7 @@ export default {
     fillAutocomplete(inputText) {
       inputText = inputText.trim()
 
-      if (inputText.length < 2) {
+      if (inputText.length < 3) {
         this.autocompleteItems = []
         return
       }
@@ -228,9 +228,22 @@ export default {
     },
     async fetchData(symbol, period) {
       try {
+        let aggregate = 1
+        switch (period) {
+          case '5y':
+          case '2y':
+            aggregate = 30
+            break
+          case '1y':
+          case '6m':
+            aggregate = 7
+            break
+        }
+
         let response = await this.restRequest(`chart/${period}`, {
           params: {
-            symbol
+            symbol,
+            aggregate
           }
         })
 
@@ -267,7 +280,7 @@ export default {
         }
       }))
 
-      let unit = null
+      let unit = 'day'
       switch (this.period) {
         case '1y':
         case '2y':
@@ -283,8 +296,6 @@ export default {
         case '1m':
           unit = 'day'
           break
-        default:
-          unit = 'day'
       }
 
       this.chart.options = {

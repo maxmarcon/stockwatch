@@ -396,6 +396,26 @@ class IexServiceTest < ActiveSupport::TestCase
     end
   end
 
+  test "#get_chart_data returns error if aggregate is not numeric" do
+    symbol = "1SSEMYM1-MM"
+
+    RestClient.stub :get, @rest_should_never_be_called do
+      res, message = @service.get_chart_data('1m', symbol: symbol, aggregate: "all")
+      assert_not res
+      assert_match "Invalid aggregate value", message
+    end
+  end
+
+  test "#get_chart_data returns error if aggregate is not positive" do
+    symbol = "1SSEMYM1-MM"
+
+    RestClient.stub :get, @rest_should_never_be_called do
+      res, message = @service.get_chart_data('1m', symbol: symbol, aggregate: 0)
+      assert_not res
+      assert_match "Invalid aggregate value", message
+    end
+  end
+
   test "#get_chart_data does not call API if days in DB are above or equal to the threshold and last entry is recent enough" do
     symbol = "1SSEMYM1-MM"
     expected = (1.month / 1.day)*IexService::DAYS_THRESHOLD
@@ -405,11 +425,13 @@ class IexServiceTest < ActiveSupport::TestCase
 
       assert res
       assert result.has_key?(:data)
+      assert_equal symbol, result[:symbol]
       assert_equal 'MXN', result[:currency]
       assert_equal (1.month / 1.day)*IexService::DAYS_THRESHOLD, result[:data].count
       result[:data].each do |chart_entry|
-        assert_equal symbol, chart_entry.symbol
-        assert chart_entry.serializable_hash.values.all?
+        assert chart_entry.has_key?(:close)
+        assert chart_entry.has_key?(:date)
+        assert chart_entry.values.all?
       end
     end
   end
@@ -424,11 +446,13 @@ class IexServiceTest < ActiveSupport::TestCase
 
       assert res
       assert result.has_key?(:data)
+      assert_equal symbol, result[:symbol]
       assert_equal 'MXN', result[:currency]
       assert_equal (1.month / 1.day)*IexService::DAYS_THRESHOLD, result[:data].count
       result[:data].each do |chart_entry|
-        assert_equal symbol, chart_entry.symbol
-        assert chart_entry.serializable_hash.values.all?
+        assert chart_entry.has_key?(:close)
+        assert chart_entry.has_key?(:date)
+        assert chart_entry.values.all?
       end
     end
   end
@@ -442,11 +466,13 @@ class IexServiceTest < ActiveSupport::TestCase
 
       assert res
       assert result.has_key?(:data)
+      assert_equal symbol, result[:symbol]
       assert_equal 'MXN', result[:currency]
       assert_equal expected, result[:data].count
       result[:data].each do |chart_entry|
-        assert_equal symbol, chart_entry.symbol
-        assert chart_entry.serializable_hash.values.all?
+        assert chart_entry.has_key?(:close)
+        assert chart_entry.has_key?(:date)
+        assert chart_entry.values.all?
       end
     end
 
@@ -463,11 +489,13 @@ class IexServiceTest < ActiveSupport::TestCase
 
       assert res
       assert result.has_key?(:data)
+      assert_equal symbol, result[:symbol]
       assert_equal 'MXN', result[:currency]
       assert_equal expected, result[:data].count
       result[:data].each do |chart_entry|
-        assert_equal symbol, chart_entry.symbol
-        assert chart_entry.serializable_hash.values.all?
+        assert chart_entry.has_key?(:close)
+        assert chart_entry.has_key?(:date)
+        assert chart_entry.values.all?
       end
     end
 

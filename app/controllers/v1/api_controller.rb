@@ -22,20 +22,22 @@ module V1
 
     def chart
       period, symbol, iex_id = params.values_at('period', 'symbol', 'iex_id')
+      aggregate = params.fetch('aggregate', 1)
 
       status, result = @iex_service.get_chart_data(
         period,
         symbol: symbol,
-        iex_id: iex_id
+        iex_id: iex_id,
+        aggregate: aggregate.to_i
       )
 
       if status
         entries = result[:data]
         if entries.any?
           render json: {
-            symbol: entries.first.symbol,
+            symbol: result[:symbol],
             currency: result[:currency],
-            data: entries.map{ |record| record.serializable_hash(except: [:created_at, :updated_at, :id, :symbol]) }
+            data: entries
           }
         else
           raise ActiveRecord::RecordNotFound, "not_found"

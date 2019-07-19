@@ -53,7 +53,7 @@ class ApiControllerTest < ActionDispatch::IntegrationTest
     assert_equal symbol, json_response["symbol"]
     assert_equal (1.month/1.day)*IexService::DAYS_THRESHOLD, json_response["data"].count
     json_response["data"].each do |record|
-      assert record.values_at("date", "close", "volume", "change", "change_percent", "change_over_time").all?
+      assert record.values_at("date", "close").all?
     end
   end
 
@@ -72,7 +72,7 @@ class ApiControllerTest < ActionDispatch::IntegrationTest
     assert_equal IexSymbol.find_by(iex_id: iex_id).symbol, json_response["symbol"]
     assert_equal (1.month/1.day)*IexService::DAYS_THRESHOLD, json_response["data"].count
     json_response["data"].each do |record|
-      assert record.values_at("date", "close", "volume", "change", "change_percent", "change_over_time").all?
+      assert record.values_at("date", "close").all?
     end
   end
 
@@ -87,6 +87,19 @@ class ApiControllerTest < ActionDispatch::IntegrationTest
 
     assert_equal 400, @response.parsed_body["status"]
     assert_match "Invalid time period 2m", @response.parsed_body["message"]
+  end
+
+  test "GET /chart/:period returns 400 Bad Request with invalid aggregate value" do
+    symbol = '1SSEMYM1-MM'
+
+    RestClient.stub :get, @rest_should_never_be_called do
+      get "/v1/chart/1m", params: {aggregate: 0, symbol: symbol}, headers: {"Accept" => 'application/json' }
+    end
+
+    assert_response :bad_request
+
+    assert_equal 400, @response.parsed_body["status"]
+    assert_match "Invalid aggregate value", @response.parsed_body["message"]
   end
 
   test "GET /chart/:period returns 400 Bad Request if symbol is missing" do
