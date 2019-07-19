@@ -13,10 +13,13 @@ b-card
           :max-tags="10"
           :maxlength="50"
           :add-only-from-autocomplete="true"
-          placeholder="Enter an ISIN or a ticker..."
+          placeholder="Search by name, ticker, or ISIN"
         )
+          template(v-slot:tag-center="{tag}")
+            span(v-b-tooltip.hover :title="tag.name") {{ tag.text }}
+
           template(v-slot:tag-right="{tag}")
-            span(v-if="tag.isin") &nbsp; {{ "[" + tag.isin + "]" }}
+            span(v-if="tag.isin" v-b-tooltip.hover :title="tag.name") &nbsp; {{ "[" + tag.isin + "]" }}
 
           template(
             v-slot:autocomplete-item="{item, performAdd}"
@@ -209,6 +212,7 @@ export default {
             this.chart.data.datasets.push({
               symbol: tag.text,
               period: this.period,
+              name: tag.name,
               label: `${tag.text} (${data.currency})`,
               yAxisID: data.currency,
               fill: false,
@@ -252,7 +256,7 @@ export default {
           date
         }) => ({
           x: dateFns.parse(date),
-          y: close
+          y: parseFloat(close).toFixed(2)
         }))
 
         return {
@@ -307,6 +311,18 @@ export default {
               unit
             }
           }]
+        },
+        tooltips: {
+          callbacks: {
+            afterLabel: (tooltTipItem, data) => data.datasets[tooltTipItem.datasetIndex].name,
+            title: (tooltTipItem, data) => {
+              if (tooltTipItem instanceof Array) {
+                tooltTipItem = tooltTipItem[0]
+              }
+              return dateFns.format(data.datasets[tooltTipItem.datasetIndex].data[tooltTipItem.index].x,
+                'MMM D, YYYY')
+            }
+          }
         }
       }
 
