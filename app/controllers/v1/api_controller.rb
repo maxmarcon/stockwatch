@@ -22,14 +22,16 @@ module V1
 
     def chart
       period, symbol, iex_id = params.values_at('period', 'symbol', 'iex_id')
-      aggregate = params.fetch('aggregate', 1)
+      max_points = params.fetch('max_points', 100).to_i
 
       status, result = @iex_service.get_chart_data(
         period,
         symbol: symbol,
         iex_id: iex_id,
-        aggregate: aggregate.to_i
+        max_points: max_points
       )
+
+#      sleep(5)
 
       if status
         entries = result[:data]

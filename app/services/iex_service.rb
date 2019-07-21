@@ -86,11 +86,11 @@ class IexService
     ]
   end
 
-  def get_chart_data(period, iex_id: nil, symbol: nil, aggregate: 1)
+  def get_chart_data(period, iex_id: nil, symbol: nil, max_points: 100)
     return [false, "You need to specify either a symbol or a iex_id"] if [iex_id, symbol].all?(&:nil?)
     return [false, "You can only specify either a symbol or a iex_id but not both"] if [iex_id, symbol].all?
     return [false, "Invalid time period #{period}, must be one of: #{TIME_PERIODS}"] unless period.in?(TIME_PERIODS)
-    return [false, "Invalid aggregate value #{aggregate}, must be a positive integer"] unless aggregate.is_a?(Numeric) && aggregate.positive?
+    return [false, "Invalid max_points value #{max_points}, must be a positive integer"] unless max_points.is_a?(Numeric) && max_points.positive?
 
     iex_symbol = if iex_id
       IexSymbol.find_by(iex_id: iex_id)
@@ -108,9 +108,15 @@ class IexService
         fetch_chart_data(period, iex_symbol.symbol)
       end
 
+      slice_size = if query.count > 0
+        (query.count.to_f / max_points).ceil
+      else
+        1
+      end
+
       data = query
         .order(:date)
-        .each_slice(aggregate)
+        .each_slice(slice_size)
         .map do |slice|
           {
             date: slice.last.date,

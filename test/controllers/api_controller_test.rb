@@ -89,17 +89,17 @@ class ApiControllerTest < ActionDispatch::IntegrationTest
     assert_match "Invalid time period 2m", @response.parsed_body["message"]
   end
 
-  test "GET /chart/:period returns 400 Bad Request with invalid aggregate value" do
+  test "GET /chart/:period returns 400 Bad Request with invalid max_points value" do
     symbol = '1SSEMYM1-MM'
 
     RestClient.stub :get, @rest_should_never_be_called do
-      get "/v1/chart/1m", params: {aggregate: 0, symbol: symbol}, headers: {"Accept" => 'application/json' }
+      get "/v1/chart/1m", params: {max_points: 0, symbol: symbol}, headers: {"Accept" => 'application/json' }
     end
 
     assert_response :bad_request
 
     assert_equal 400, @response.parsed_body["status"]
-    assert_match "Invalid aggregate value", @response.parsed_body["message"]
+    assert_match "Invalid max_points value", @response.parsed_body["message"]
   end
 
   test "GET /chart/:period returns 400 Bad Request if symbol is missing" do

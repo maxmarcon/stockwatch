@@ -31,7 +31,7 @@ b-card
 
       b-col.mt-1(md="auto")
         b-form-select(:options="periods" v-model="period" @change="periodChanged" size="sm")
-      b-col.mt-2(md="auto")
+      b-col.mt-1(md="auto")
         .d-flex.justify-content-center
           b-spinner(v-if="updateOngoing")
 
@@ -330,22 +330,9 @@ export default {
     },
     async fetchData(symbol, period) {
       try {
-        let aggregate = 1
-        switch (period) {
-          case '5y':
-          case '2y':
-            aggregate = 30
-            break
-          case '1y':
-          case '6m':
-            aggregate = 7
-            break
-        }
-
         let response = await this.restRequest(`chart/${period}`, {
           params: {
-            symbol,
-            aggregate
+            symbol
           }
         })
 

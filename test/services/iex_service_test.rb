@@ -396,23 +396,23 @@ class IexServiceTest < ActiveSupport::TestCase
     end
   end
 
-  test "#get_chart_data returns error if aggregate is not numeric" do
+  test "#get_chart_data returns error if max_points is not numeric" do
     symbol = "1SSEMYM1-MM"
 
     RestClient.stub :get, @rest_should_never_be_called do
-      res, message = @service.get_chart_data('1m', symbol: symbol, aggregate: "all")
+      res, message = @service.get_chart_data('1m', symbol: symbol, max_points: "all")
       assert_not res
-      assert_match "Invalid aggregate value", message
+      assert_match "Invalid max_points value", message
     end
   end
 
-  test "#get_chart_data returns error if aggregate is not positive" do
+  test "#get_chart_data returns error if max_points is not positive" do
     symbol = "1SSEMYM1-MM"
 
     RestClient.stub :get, @rest_should_never_be_called do
-      res, message = @service.get_chart_data('1m', symbol: symbol, aggregate: 0)
+      res, message = @service.get_chart_data('1m', symbol: symbol, max_points: 0)
       assert_not res
-      assert_match "Invalid aggregate value", message
+      assert_match "Invalid max_points value", message
     end
   end
 
