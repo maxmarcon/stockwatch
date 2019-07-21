@@ -31,8 +31,6 @@ module V1
         max_points: max_points
       )
 
-#      sleep(5)
-
       if status
         entries = result[:data]
         if entries.any?
