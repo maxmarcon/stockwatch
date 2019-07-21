@@ -30,10 +30,10 @@ b-card
               span.em.small &nbsp; {{ item.name }}
 
       b-col.mt-1(md="auto")
-        b-form-select(:options="periods" v-model="period" @change="periodChanged")
+        b-form-select(:options="periods" v-model="period" @change="periodChanged" size="sm")
       b-col.mt-2(md="auto")
         .d-flex.justify-content-center
-          b-spinner(v-if="requestOngoing || updateOngoing")
+          b-spinner(v-if="updateOngoing")
 
   canvas(:style="{visibility: tags.length > 0 ? 'visible' : 'hidden'}" ref="canvas")
 </template>
@@ -95,12 +95,15 @@ export default {
       chart: null,
       searchQueryTimeout: null,
       nextColor: 0,
-      updateOngoing: false
+      ongoingUpdates: []
     }
   },
   mounted() {
     this.chart = new Chart(this.$refs.canvas, {
       type: 'line',
+      data: {
+        datasets: []
+      },
       options: {
         tooltips: {
           callbacks: {
@@ -138,6 +141,11 @@ export default {
   watch: {
     tag: function(newTag, _oldTag) {
       this.fillAutocomplete(newTag)
+    }
+  },
+  computed: {
+    updateOngoing() {
+      return this.ongoingUpdates.length > 0
     }
   },
   methods: {
@@ -180,78 +188,145 @@ export default {
     updateStorage() {
       if (localStorage) {
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({
-          tags: this.tags,
+          tags: this.tags.map(({
+            text,
+            name,
+            isin,
+            currency
+          }) => ({
+            text,
+            name,
+            isin,
+            currency
+          })),
           period: this.period
         }))
       }
     },
     async tagsChanged(newTags) {
-      if (this.updateOngoing) {
-        return
-      }
-
-      this.updateOngoing = true
-      try {
-        this.tags = await this.updateDatasets(newTags)
-        this.updateStorage()
-      } finally {
-        this.updateOngoing = false
-      }
+      console.log(process.env.NODE_ENV)
+      console.log('tagsChanged: ' + newTags.map(({
+        text
+      }) => text).join(','))
+      await this.updateDatasets(newTags)
+      this.tags = newTags
+      this.updateStorage()
     },
     periodChanged() {
       this.updateDatasets(this.tags)
       this.updateStorage()
     },
     async updateDatasets(newTags) {
+      console.log('updateDatasets: ' + newTags.map(({
+        text
+      }) => `${text}`).join(','))
+
+      // which tags need updates?
+      let updates = newTags
+        .filter(({
+          text
+        }) => {
+          return !this.chart.data.datasets.find(({
+              symbol,
+              period
+            }) => symbol == text && period == this.period) &&
+            !this.ongoingUpdates.find(({
+              symbol,
+              period
+            }) => symbol == text && period == this.period)
+        })
+        .map(({
+          text
+        }) => ({
+          symbol: text,
+          period: this.period
+        }))
+
+      this.ongoingUpdates = this.ongoingUpdates.concat(updates)
+
+      console.log("new updates = " + updates.map(({
+        symbol,
+        period
+      }) => `${symbol}:${period}`).join(','))
+
+      let results = await Promise.all(updates.map(async ({
+        symbol,
+        period
+      }) => {
+        console.log("fetching: " + `${symbol}:${period}`)
+        let data = await this.fetchData(symbol, period)
+        return {
+          data,
+          symbol,
+          period
+        }
+      }))
+
+      this.ongoingUpdates = this.ongoingUpdates.filter((u) => !updates.includes(u))
+
+      results.forEach(({
+        data,
+        period,
+        symbol
+      }) => {
+        // is the result of this update still needed? Maybe the tag has been deleted
+        // or the period has changed
+        let tag = newTags.find(({
+          text
+        }) => text == symbol)
+
+        console.log(`processing result of ${symbol}:${period}`)
+        console.log("tags = " + newTags.map(({
+          text
+        }) => text).join(','))
+
+        if (tag && period == this.period) {
+
+          if (data) {
+            let dataset = this.chart.data.datasets.find(({
+              symbol: _symbol
+            }) => _symbol == symbol)
+
+            if (dataset) {
+              console.log('updating dataset')
+              dataset.data = data.data
+              dataset.period = period
+            } else {
+              console.log('creating new dataset')
+              let color = COLORS[this.nextColor++ % COLORS.length]
+
+              this.chart.data.datasets.push({
+                symbol: tag.text,
+                period,
+                name: tag.name,
+                label: `${tag.text} (${data.currency})`,
+                yAxisID: data.currency,
+                fill: false,
+                backgroundColor: color,
+                borderColor: color,
+                data: data.data
+              })
+            }
+          } else {
+            tag.classes = 'ti-invalid'
+          }
+        } else {
+          console.log('result discarded')
+        }
+      })
+
+      // remove stale datasets
       this.chart.data.datasets = this.chart.data.datasets
+        .filter(({
+          period
+        }) => period == this.period)
         .filter(({
           symbol
         }) => newTags.find(({
           text
         }) => text == symbol))
 
-      for (let i = 0; i < newTags.length; ++i) {
-        let tag = newTags[i]
-
-        let currentDataset = this.chart.data.datasets.find(({
-          symbol
-        }) => symbol == tag.text)
-
-        if (currentDataset && currentDataset.period != this.period) {
-          let data = await this.fetchData(tag.text, this.period)
-          if (data) {
-            currentDataset.data = data.data
-            currentDataset.period = this.period
-          } else {
-            tag.classes = 'ti-invalid'
-          }
-
-        } else if (!currentDataset) {
-          let data = await this.fetchData(tag.text, this.period)
-
-          if (data) {
-            let color = COLORS[this.nextColor++ % COLORS.length]
-
-            this.chart.data.datasets.push({
-              symbol: tag.text,
-              period: this.period,
-              name: tag.name,
-              label: `${tag.text} (${data.currency})`,
-              yAxisID: data.currency,
-              fill: false,
-              backgroundColor: color,
-              borderColor: color,
-              data: data.data
-            })
-          } else {
-            tag.classes = 'ti-invalid'
-          }
-        }
-      }
-
       this.updateChart()
-
-      return newTags
     },
     async fetchData(symbol, period) {
       try {
