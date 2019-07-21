@@ -332,7 +332,8 @@ export default {
       try {
         let response = await this.restRequest(`chart/${period}`, {
           params: {
-            symbol
+            symbol,
+            max_points: 150
           }
         })
 
