@@ -35,7 +35,11 @@ module.exports = function(api) {
       ]
     ].filter(Boolean),
     plugins: [
-      isProductionEnv && require('babel-plugin-transform-remove-console'),
+      isProductionEnv && [
+        require('babel-plugin-transform-remove-console'), {
+          "exclude": ["error", "warn"]
+        }
+      ],
       require('babel-plugin-macros'),
       require('@babel/plugin-syntax-dynamic-import').default,
       isTestEnv && require('babel-plugin-dynamic-import-node'),

@@ -10,7 +10,7 @@ default: &default
   timeout: 5000
   host: localhost
 
-development:
+development: &development
   <<: *default
   database: stockwatch_dev
   user: stockwatch
