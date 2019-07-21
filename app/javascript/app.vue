@@ -16,10 +16,10 @@ b-card
           placeholder="Search by name, ticker, or ISIN"
         )
           template(v-slot:tag-center="{tag}")
-            span(v-b-tooltip.hover :title="tag.name") {{ tag.text }}
+            span(v-b-tooltip.hover :title="tag.error || tag.name") {{ tag.text }}
 
           template(v-slot:tag-right="{tag}")
-            span(v-if="tag.isin" v-b-tooltip.hover :title="tag.name") &nbsp; {{ "[" + tag.isin + "]" }}
+            span(v-if="tag.isin && !tag.error" v-b-tooltip.hover :title="tag.name") &nbsp; {{ "[" + tag.isin + "]" }}
 
           template(
             v-slot:autocomplete-item="{item, performAdd}"
@@ -282,6 +282,9 @@ export default {
         if (tag && period == this.period) {
 
           if (data) {
+            tag.error = null
+            tag.classes = null
+
             let dataset = this.chart.data.datasets.find(({
               symbol: _symbol
             }) => _symbol == symbol)
@@ -307,7 +310,9 @@ export default {
               })
             }
           } else {
+            console.log('request failed')
             tag.classes = 'ti-invalid'
+            tag.error = 'The data could not be retrieved'
           }
         } else {
           console.log('result discarded')
@@ -348,12 +353,7 @@ export default {
           data,
           currency: response.currency
         }
-
-      } catch (error) {
-        if (!error.response || error.response.status != 404) {
-          throw error
-        }
-      }
+      } catch (error) {}
     },
     updateChart() {
       let currencies = this.chart.data.datasets.map(({

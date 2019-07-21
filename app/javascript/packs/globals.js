@@ -21,7 +21,7 @@ export const RestMixin = {
         let response = await this.$http.request(config)
         return response.data
       } catch (error) {
-        let message = (error.response ? error.response.data.message : "An error occurred")
+        let message = (error.response ? error.response.data.message : "An error occurred while contacting the server")
         if (this.$refs.errorBar && (!error.response || !config.ignoreErrorStatus.includes(error.response.status))) {
           this.$refs.errorBar.show(message)
         }
