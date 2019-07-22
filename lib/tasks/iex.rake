@@ -9,6 +9,26 @@ namespace :iex do
     end
   end
 
+  task :fetch, [:refs] => [:environment] do |task, args|
+    prompt = TTY::Prompt.new
+
+    if (args.none?)
+      prompt.error "You need to specify one or more references to fetch"
+    else
+      refs = args.to_a
+        .map{ |ref| if ref.start_with?('ref-data') then ref else "ref-data/#{ref}" end }
+        .map{ |ref| if ref.end_with?('symbols') then ref else "#{ref}/symbols" end }
+
+      prompt.say("Fetching symbols from the following lists:")
+      refs.each{ |ref| prompt.say(ref) }
+
+      if prompt.yes?("Continue?")
+        IexService.new({'api_service' => {'call_max_age' => 1}, 'symbol_lists' => refs}).init_symbols
+        prompt.ok("There are now #{IexSymbol.count} symbols")
+      end
+    end
+  end
+
   desc "Delete all iex symbols"
   task delete: :environment do
     prompt = TTY::Prompt.new
