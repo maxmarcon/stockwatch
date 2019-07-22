@@ -108,6 +108,9 @@ export default {
         tooltips: {
           callbacks: {
             afterLabel: (tooltTipItem, data) => data.datasets[tooltTipItem.datasetIndex].name,
+            label: (tooltTipItem, data) =>
+              data.datasets[tooltTipItem.datasetIndex].symbolAndCurrency +
+              ': ' + tooltTipItem.value,
             title: (tooltTipItem, data) => {
               if (tooltTipItem instanceof Array) {
                 tooltTipItem = tooltTipItem[0]
@@ -149,6 +152,12 @@ export default {
     }
   },
   methods: {
+    growth(data) {
+      let end_value = data[data.length - 1].y
+      let start_value = data[0].y
+
+      return (end_value > start_value ? '+' : '') + (((end_value - start_value) / start_value) * 100).toFixed(1) + '%'
+    },
     fillAutocomplete(inputText) {
       inputText = inputText.trim()
 
@@ -289,10 +298,14 @@ export default {
               symbol: _symbol
             }) => _symbol == symbol)
 
+            let symbolAndCurrency = `${tag.text} (${data.currency})`
+            let label = `${symbolAndCurrency} ${this.growth(data.data)}`
+
             if (dataset) {
               console.log('updating dataset')
               dataset.data = data.data
               dataset.period = period
+              dataset.label = label
             } else {
               console.log('creating new dataset')
               let color = COLORS[this.nextColor++ % COLORS.length]
@@ -301,7 +314,8 @@ export default {
                 symbol: tag.text,
                 period,
                 name: tag.name,
-                label: `${tag.text} (${data.currency})`,
+                symbolAndCurrency,
+                label,
                 yAxisID: data.currency,
                 fill: false,
                 backgroundColor: color,
