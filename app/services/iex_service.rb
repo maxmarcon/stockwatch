@@ -35,27 +35,23 @@ class IexService
 
   def search_symbols(term)
     if term.present?
-      query_top = IexSymbol
-        .where('symbol ilike ?', "#{term}%")
-        .or(IexSymbol.where('iex_id ilike ?', "#{term}%"))
-        .order(:symbol)
-        .limit(10)
 
-      query_bottom = IexSymbol
-        .where('symbol ilike ?', "%#{term}%")
-        .or(IexSymbol.where('name ilike ?', "%#{term}%"))
-        .order(:symbol)
-        .limit(10)
+      symbol_query = term.split.reduce(IexSymbol){ |query, token| query.where('symbol ilike ?', "%#{token}%") }
+      iex_query = term.split.reduce(IexSymbol){ |query, token| query.where('iex_id ilike ?', "%#{token}%") }
+      name_query = term.split.reduce(IexSymbol){ |query, token| query.where('name ilike ?', "%#{token}%") }
 
-      status, by_isin = get_symbols_by_isin(term)
-      by_isin = [] unless status
+      query = symbol_query.or(name_query).or(iex_query).order(:symbol).limit(20)
 
-      if (Rails.env.development?)
-        Rails.logger.info(query_top.to_sql)
-        Rails.logger.info(query_bottom.to_sql)
+      by_isin = term.split.reduce([]) do |by_isin, token|
+        status, res = get_symbols_by_isin(token)
+        by_isin.concat(res) if (status)
       end
 
-      [true, (by_isin + query_top.to_a + query_bottom.to_a).uniq]
+      if (Rails.env.development?)
+        Rails.logger.info(query.to_sql)
+      end
+
+      [true, (by_isin + query.to_a).uniq]
     else
       [false, :search_term_missing]
     end
