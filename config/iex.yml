@@ -7,6 +7,8 @@ development: &default
     - ref-data/region/FR/symbols
     - ref-data/region/GB/symbols
     - ref-data/region/NL/symbols
+    - ref-data/region/IE/symbols
+    - ref-data/region/BE/symbols
     - ref-data/otc/symbols
     - ref-data/symbols
 
