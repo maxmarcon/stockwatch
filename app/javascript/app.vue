@@ -360,7 +360,7 @@ export default {
           date
         }) => ({
           x: dateFns.parse(date),
-          y: parseFloat(close).toFixed(2)
+          y: parseFloat(parseFloat(close).toFixed(2))
         }))
 
         return {
